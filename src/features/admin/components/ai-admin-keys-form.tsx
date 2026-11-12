@@ -6,6 +6,8 @@ import { updateAiAdminKeys } from "@/features/admin/actions/ai-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
+import { type SecretName } from "@/features/secrets/names";
 
 /**
  * The ADMIN credentials that read what the providers actually billed.
@@ -74,6 +76,7 @@ export function AiAdminKeysForm({
         <KeyField
           id="claude-admin"
           label="Anthropic admin key"
+          secret="aiClaudeAdminKey"
           saved={claudeSaved}
           value={claudeKey}
           onChange={setClaudeKey}
@@ -81,6 +84,7 @@ export function AiAdminKeysForm({
         <KeyField
           id="openai-admin"
           label="OpenAI admin key"
+          secret="aiOpenAiAdminKey"
           saved={openAiSaved}
           value={openAiKey}
           onChange={setOpenAiKey}
@@ -136,12 +140,14 @@ export function AiAdminKeysForm({
 function KeyField({
   id,
   label,
+  secret,
   saved,
   value,
   onChange,
 }: {
   id: string;
   label: string;
+  secret: SecretName;
   saved: boolean;
   value: string;
   onChange: (v: string) => void;
@@ -152,14 +158,17 @@ function KeyField({
         {label}{" "}
         {saved ? <span className="text-xs font-normal text-green-600">(saved)</span> : null}
       </Label>
-      <Input
-        id={id}
-        type="password"
-        autoComplete="off"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={saved ? "Saved. Type to replace." : "Paste the admin key"}
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          id={id}
+          type="password"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={saved ? "Saved. Type to replace." : "Paste the admin key"}
+        />
+        {saved ? <CopySecretButton name={secret} /> : null}
+      </div>
     </div>
   );
 }

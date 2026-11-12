@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 
 type SaveResult = { ok: boolean; error?: string };
@@ -157,12 +158,15 @@ export function IntegrationSettingsForm({
           <Label className="text-xs">
             Meta CAPI access token {initial.hasCapiToken ? <span className="text-green-600">(saved - leave blank to keep)</span> : null}
           </Label>
-          <Input
-            type="password"
-            value={capiToken}
-            onChange={(e) => setCapiToken(e.target.value)}
-            placeholder={initial.hasCapiToken ? "••••••••" : "Paste your Conversions API token"}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="password"
+              value={capiToken}
+              onChange={(e) => setCapiToken(e.target.value)}
+              placeholder={initial.hasCapiToken ? "••••••••" : "Paste your Conversions API token"}
+            />
+            {initial.hasCapiToken ? <CopySecretButton name="metaCapiToken" /> : null}
+          </div>
         </div>
         <div>
           <Button size="sm" onClick={saveMeta} disabled={pending}>Save Meta settings</Button>
@@ -230,13 +234,19 @@ export function IntegrationSettingsForm({
           <Label className="text-xs">
             Key secret {initial.hasRazorpaySecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <Input type="password" value={keySecret} onChange={(e) => setKeySecret(e.target.value)} placeholder={initial.hasRazorpaySecret ? "••••••••" : "Key secret"} />
+          <div className="flex items-center gap-2">
+            <Input type="password" value={keySecret} onChange={(e) => setKeySecret(e.target.value)} placeholder={initial.hasRazorpaySecret ? "••••••••" : "Key secret"} />
+            {initial.hasRazorpaySecret ? <CopySecretButton name="razorpayKeySecret" /> : null}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">
             Webhook secret {initial.hasRazorpayWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <Input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasRazorpayWebhookSecret ? "••••••••" : "Webhook signing secret"} />
+          <div className="flex items-center gap-2">
+            <Input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasRazorpayWebhookSecret ? "••••••••" : "Webhook signing secret"} />
+            {initial.hasRazorpayWebhookSecret ? <CopySecretButton name="razorpayWebhookSecret" /> : null}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Webhook URL (point Razorpay → Settings → Webhooks here)</Label>
@@ -274,24 +284,30 @@ export function IntegrationSettingsForm({
           <Label className="text-xs">
             Key secret {initial.hasRazorpayNonGstSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <Input
-            type="password"
-            value={ngKeySecret}
-            onChange={(e) => setNgKeySecret(e.target.value)}
-            placeholder={initial.hasRazorpayNonGstSecret ? "••••••••" : "Key secret"}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="password"
+              value={ngKeySecret}
+              onChange={(e) => setNgKeySecret(e.target.value)}
+              placeholder={initial.hasRazorpayNonGstSecret ? "••••••••" : "Key secret"}
+            />
+            {initial.hasRazorpayNonGstSecret ? <CopySecretButton name="razorpayNonGstKeySecret" /> : null}
+          </div>
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">
             Webhook secret{" "}
             {initial.hasRazorpayNonGstWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <Input
-            type="password"
-            value={ngWebhookSecret}
-            onChange={(e) => setNgWebhookSecret(e.target.value)}
-            placeholder={initial.hasRazorpayNonGstWebhookSecret ? "••••••••" : "Webhook signing secret"}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="password"
+              value={ngWebhookSecret}
+              onChange={(e) => setNgWebhookSecret(e.target.value)}
+              placeholder={initial.hasRazorpayNonGstWebhookSecret ? "••••••••" : "Webhook signing secret"}
+            />
+            {initial.hasRazorpayNonGstWebhookSecret ? <CopySecretButton name="razorpayNonGstWebhookSecret" /> : null}
+          </div>
           <p className="text-xs text-[var(--muted-foreground)]">
             The secret THIS account&apos;s webhook generates, not the GST one. The two differ, and the
             difference is the whole mechanism below.

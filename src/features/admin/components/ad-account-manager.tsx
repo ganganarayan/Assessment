@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import {
   createAdAccount,
   updateAdAccount,
@@ -149,13 +150,16 @@ function AccountCard({
             <span className="text-amber-700">(not set - this account sends no server-side events)</span>
           )}
         </Label>
-        <Input
-          type="password"
-          value={token}
-          disabled={!canEdit || pending}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder={account.hasCapiToken ? "••••••••" : "Paste this account's token"}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="password"
+            value={token}
+            disabled={!canEdit || pending}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder={account.hasCapiToken ? "••••••••" : "Paste this account's token"}
+          />
+          {account.hasCapiToken ? <CopySecretButton name="adAccountCapiToken" recordId={account.id} /> : null}
+        </div>
       </div>
 
       {canEdit ? (

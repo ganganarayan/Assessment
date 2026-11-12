@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { NURTURE_PLACEHOLDERS } from "@/features/nurture/config";
@@ -817,12 +818,15 @@ function ZoomAppForm({ configured, onDone }: { configured: boolean; onDone: (msg
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Client secret {configured ? "(blank keeps the saved one)" : ""}</Label>
-          <Input
-            type="password"
-            value={clientSecret}
-            onChange={(e) => setClientSecret(e.target.value)}
-            autoComplete="off"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="password"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              autoComplete="off"
+            />
+            {configured ? <CopySecretButton name="zoomClientSecret" /> : null}
+          </div>
         </div>
       </div>
       <div>

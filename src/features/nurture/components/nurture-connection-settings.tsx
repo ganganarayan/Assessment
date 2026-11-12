@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSettingsView } from "@/features/nurture/actions";
 import { EMAIL_PROVIDER_OPTIONS, DEFAULT_PROVIDER_ID, emailProviderOption } from "@/lib/email/catalog";
 import { WhatsAppConnect } from "@/features/whatsapp/components/whatsapp-connect";
@@ -125,12 +126,18 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
             <Field label="Port"><Input value={v.port} placeholder="587" inputMode="numeric" onChange={(e) => setV({ ...v, port: e.target.value })} /></Field>
             <Field label="Username"><Input value={v.user} onChange={(e) => setV({ ...v, user: e.target.value })} /></Field>
             <Field label={`Password ${initial.hasPass ? "(saved - leave blank to keep)" : ""}`}>
-              <Input type="password" value={v.pass} placeholder={initial.hasPass ? "••••••••" : ""} onChange={(e) => setV({ ...v, pass: e.target.value })} />
+              <div className="flex items-center gap-2">
+                <Input type="password" value={v.pass} placeholder={initial.hasPass ? "••••••••" : ""} onChange={(e) => setV({ ...v, pass: e.target.value })} />
+                {initial.hasPass ? <CopySecretButton name="smtpPass" /> : null}
+              </div>
             </Field>
           </>
         ) : (
           <Field label={`${chosen.keyLabel} ${initial.hasApiKey ? "(saved - leave blank to keep)" : ""}`}>
-            <Input type="password" value={v.apiKey} placeholder={initial.hasApiKey ? "••••••••" : ""} onChange={(e) => setV({ ...v, apiKey: e.target.value })} />
+            <div className="flex items-center gap-2">
+              <Input type="password" value={v.apiKey} placeholder={initial.hasApiKey ? "••••••••" : ""} onChange={(e) => setV({ ...v, apiKey: e.target.value })} />
+              {initial.hasApiKey ? <CopySecretButton name="emailApiKey" /> : null}
+            </div>
           </Field>
         )}
         <Field label="From name"><Input value={v.fromName} placeholder="Your name or business" onChange={(e) => setV({ ...v, fromName: e.target.value })} /></Field>
@@ -229,7 +236,10 @@ function WabaForm({
             <Field label="Phone number ID"><Input value={v.phoneNumberId} onChange={(e) => setV({ ...v, phoneNumberId: e.target.value })} /></Field>
             <Field label="Business Account ID (for templates)"><Input value={v.businessAccountId} placeholder="WABA id from WhatsApp Manager" onChange={(e) => setV({ ...v, businessAccountId: e.target.value })} /></Field>
             <Field label={`Access token ${initial.hasToken ? "(saved - leave blank to keep)" : ""}`}>
-              <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
+              <div className="flex items-center gap-2">
+                <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
+                {initial.hasToken ? <CopySecretButton name="wabaAccessToken" /> : null}
+              </div>
             </Field>
             <Field label="API version"><Input value={v.apiVersion} placeholder="v21.0" onChange={(e) => setV({ ...v, apiVersion: e.target.value })} /></Field>
             <Field label="Default country code"><Input value={v.defaultCountryCode} placeholder="91" onChange={(e) => setV({ ...v, defaultCountryCode: e.target.value })} /></Field>

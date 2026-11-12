@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import { updateMetaAppSettings } from "@/features/admin/actions/meta-app";
 import { type MetaAppSettingsView } from "@/features/whatsapp/types";
 
@@ -46,13 +47,16 @@ export function MetaAppForm({ initial }: { initial: MetaAppSettingsView }) {
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="meta-app-secret">App secret {initial.hasSecret ? "(saved - leave blank to keep)" : ""}</Label>
-          <Input
-            id="meta-app-secret"
-            type="password"
-            placeholder={initial.hasSecret ? "••••••••" : "From the same page"}
-            value={v.appSecret}
-            onChange={(e) => setV({ ...v, appSecret: e.target.value })}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="meta-app-secret"
+              type="password"
+              placeholder={initial.hasSecret ? "••••••••" : "From the same page"}
+              value={v.appSecret}
+              onChange={(e) => setV({ ...v, appSecret: e.target.value })}
+            />
+            {initial.hasSecret ? <CopySecretButton name="metaAppSecret" /> : null}
+          </div>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="meta-config-id">Embedded Signup configuration id</Label>
@@ -68,13 +72,16 @@ export function MetaAppForm({ initial }: { initial: MetaAppSettingsView }) {
           <Label htmlFor="meta-verify-token">
             Webhook verify token {initial.hasVerifyToken ? "(saved - leave blank to keep)" : ""}
           </Label>
-          <Input
-            id="meta-verify-token"
-            type="password"
-            placeholder={initial.hasVerifyToken ? "••••••••" : "Invent any long random string"}
-            value={v.verifyToken}
-            onChange={(e) => setV({ ...v, verifyToken: e.target.value })}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="meta-verify-token"
+              type="password"
+              placeholder={initial.hasVerifyToken ? "••••••••" : "Invent any long random string"}
+              value={v.verifyToken}
+              onChange={(e) => setV({ ...v, verifyToken: e.target.value })}
+            />
+            {initial.hasVerifyToken ? <CopySecretButton name="metaWebhookVerifyToken" /> : null}
+          </div>
         </div>
       </div>
 

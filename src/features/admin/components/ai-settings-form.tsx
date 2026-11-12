@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CopySecretButton } from "@/components/copy-secret-button";
+import { type SecretName } from "@/features/secrets/names";
 
 const SELECT_CLASS =
   "h-10 rounded-md border bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
@@ -22,6 +24,12 @@ const PROVIDER_LABEL: Record<AiProvider, string> = {
   claude: "Claude (Anthropic)",
   openai: "OpenAI",
   gemini: "Google Gemini",
+};
+
+const KEY_SECRET: Record<AiProvider, SecretName> = {
+  claude: "aiClaudeKey",
+  openai: "aiOpenAiKey",
+  gemini: "aiGeminiKey",
 };
 
 /** One provider's key: saved independently and reused, so switching provider/model
@@ -67,6 +75,7 @@ function ProviderKeyRow({ info }: { info: ProviderKeyView }) {
       <Button size="sm" variant="outline" onClick={save} disabled={saving || !val.trim()}>
         {saving ? "Saving…" : "Save key"}
       </Button>
+      {info.hasKey ? <CopySecretButton name={KEY_SECRET[info.provider]} /> : null}
       {msg ? <span className="text-xs text-[var(--muted-foreground)]">{msg}</span> : null}
     </div>
   );

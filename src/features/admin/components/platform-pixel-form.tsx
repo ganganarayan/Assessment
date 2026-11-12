@@ -5,6 +5,7 @@ import { updatePlatformSubscriptionPixel } from "@/features/admin/actions/platfo
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 
 export function PlatformPixelForm({ initial }: { initial: { pixelId: string; hasCapiToken: boolean } }) {
   const [pixelId, setPixelId] = useState(initial.pixelId);
@@ -35,14 +36,17 @@ export function PlatformPixelForm({ initial }: { initial: { pixelId: string; has
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="platform-capi-token">Conversions API token</Label>
-        <Input
-          id="platform-capi-token"
-          type="password"
-          autoComplete="off"
-          placeholder={initial.hasCapiToken ? "•••••••• (saved - leave blank to keep)" : "Paste the CAPI access token"}
-          value={capiToken}
-          onChange={(e) => setCapiToken(e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            id="platform-capi-token"
+            type="password"
+            autoComplete="off"
+            placeholder={initial.hasCapiToken ? "•••••••• (saved - leave blank to keep)" : "Paste the CAPI access token"}
+            value={capiToken}
+            onChange={(e) => setCapiToken(e.target.value)}
+          />
+          {initial.hasCapiToken ? <CopySecretButton name="platformCapiToken" /> : null}
+        </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           A SEPARATE pixel from the Gita assessment one. It fires the SaaS funnel:
           PageView on the landing page, CompleteRegistration on free sign-up, and Purchase

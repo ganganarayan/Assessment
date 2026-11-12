@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopySecretButton } from "@/components/copy-secret-button";
 import { formatIST } from "@/lib/date";
 import {
   confirmVaultUpload,
@@ -1552,6 +1553,11 @@ function BucketForm({
           existing?.hasSecret ? "•••••••• stored" : "",
           "password",
         )}
+        {existing?.hasSecret ? (
+          <div>
+            <CopySecretButton name="vaultBucketSecret" recordId={existing.id} />
+          </div>
+        ) : null}
       </div>
 
       {!existing ? (

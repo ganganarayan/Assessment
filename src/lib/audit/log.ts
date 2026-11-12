@@ -28,7 +28,8 @@ export type AuditAction =
   | "staff.remove"
   | "agency.client.create"
   | "agency.client.remove"
-  | "agency.client.restore";
+  | "agency.client.restore"
+  | "secret.copy";
 
 export interface AuditEntry {
   actor: { id?: string | null; email: string };
