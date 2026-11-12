@@ -30,6 +30,7 @@ import { emitEvent } from "@/lib/events/emit";
 import { formatIST } from "@/lib/date";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { buildExitLink } from "@/lib/billing/exit-link";
+import { sendBillingEmail } from "@/lib/billing/billing-email";
 
 /**
  * The owner's exit assessment, read WITHOUT a super-admin guard - the person reading it
@@ -393,6 +394,14 @@ export async function cancelSubscription(): Promise<ActionResult<CancelResult>> 
     // did not go out is a notification problem, never a reason to tell somebody their
     // cancellation failed.
     console.error("[billing] cancel event failed:", e instanceof Error ? e.message : String(e));
+  });
+
+  // The confirmation email. Best-effort inside, so it cannot fail the cancel.
+  await sendBillingEmail({
+    tenantId: tenant.id,
+    kind: "cancelled",
+    plan: sub.plan as PlanId,
+    endsAt,
   });
 
   revalidatePath("/w/billing");

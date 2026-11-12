@@ -18,6 +18,7 @@ import { snapshotFor } from "@/lib/billing/entitlements";
 // The one rule for "does this status entitle a plan". Imported, never restated: checkout
 // has to answer it exactly as the gates do, or it will take away a plan a gate still honours.
 import { entitledPlan } from "@/lib/billing/plan-grant";
+import { billingChangeKind, sendBillingEmail } from "@/lib/billing/billing-email";
 
 /**
  * SaaS subscription billing on the PLATFORM-OWNER's Razorpay account (USD). Ported
@@ -190,10 +191,61 @@ export async function createSubscription(
   plan: PaidPlanId,
   term: BillingTerm = "MONTHLY",
 ): Promise<CreatedCheckout> {
-  const [customerId, planId] = await Promise.all([
-    getOrCreateCustomer(tenant),
-    getOrCreatePlan(plan, term),
-  ]);
+  return openSubscription(tenant, plan, term, await getOrCreatePlan(plan, term), {});
+}
+
+/**
+ * THE RS 1 TEST CHARGE (owner, 12-11-2026): a real Razorpay subscription for a tier at
+ * INR 1 a month, so the owner can pay with a real card and watch the whole path run -
+ * activation, the receipt email, features opening, a downgrade closing them, cancel.
+ *
+ * It is the SAME opener and the SAME activation as a customer's checkout; only the
+ * Razorpay plan differs (its own cache key and currency, so it can never be picked up by
+ * a real checkout) and the `test` note, which keeps it away from Meta and from revenue.
+ * Enterprise is allowed here because the point is to see its features switch on, even
+ * though customers are quoted rather than sold it.
+ */
+export const TEST_NOTE = "1";
+/** Each tier at a different amount (owner, 12-11-2026), so a statement line says which
+ *  plan charged it: Gate 1.10, Signal 1.20, Agency 1.30, Enterprise 1.40, in paise. */
+export const TEST_AMOUNT_PAISE: Record<PlanId, number> = { GATE: 110, SIGNAL: 120, AGENCY: 130, ENTERPRISE: 140 };
+export const testPlanKey = (plan: PlanId): string => `${plan}_TEST_INR`;
+export function testAmountText(plan: PlanId): string {
+  return `INR ${(TEST_AMOUNT_PAISE[plan] / 100).toFixed(2)}`;
+}
+
+export async function getOrCreateTestPlan(plan: PlanId): Promise<string> {
+  const planKey = testPlanKey(plan);
+  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey } });
+  const amount = TEST_AMOUNT_PAISE[plan];
+  if (cached && cached.amountCents === amount && cached.currency === "INR") {
+    return cached.razorpayPlanId;
+  }
+  const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/plans", await platformKeys(), {
+    period: "monthly",
+    interval: 1,
+    item: { name: `Assess360 ${PLAN_LABEL[plan]} (test)`, amount, currency: "INR" },
+  });
+  await prisma.razorpayPlan.upsert({
+    where: { planKey },
+    create: { planKey, razorpayPlanId: created.id, amountCents: amount, currency: "INR" },
+    update: { razorpayPlanId: created.id, amountCents: amount, currency: "INR" },
+  });
+  return created.id;
+}
+
+export async function createTestSubscription(tenant: TenantForBilling, plan: PlanId): Promise<CreatedCheckout> {
+  return openSubscription(tenant, plan, "MONTHLY", await getOrCreateTestPlan(plan), { test: TEST_NOTE });
+}
+
+async function openSubscription(
+  tenant: TenantForBilling,
+  plan: PlanId,
+  term: BillingTerm,
+  planId: string,
+  extraNotes: Record<string, string>,
+): Promise<CreatedCheckout> {
+  const customerId = await getOrCreateCustomer(tenant);
   const { totalCount } = razorpayCycle(term);
 
   /**
@@ -216,7 +268,7 @@ export async function createSubscription(
     quantity: 1,
     total_count: totalCount, // 10 years of cycles either way - effectively perpetual
     customer_notify: 0, // we handle comms ourselves
-    notes: { tenantId: tenant.id, plan, term },
+    notes: { tenantId: tenant.id, plan, term, ...extraNotes },
   });
 
   /**
@@ -285,7 +337,8 @@ export async function cancelRazorpaySubscription(
 
 export interface ActivateInput {
   tenantId: string;
-  plan: PaidPlanId;
+  /** PlanId rather than PaidPlanId only so the Rs 1 test can activate Enterprise. */
+  plan: PlanId;
   /**
    * Monthly or yearly. REQUIRED, with no default, on purpose: a default would be read as
    * MONTHLY by whichever caller forgot it, and a yearly subscription activated as monthly
@@ -312,6 +365,8 @@ export interface ActivateInput {
   amountUsd?: number | null;
   /** card / upi / netbanking, when the provider said. */
   method?: string | null;
+  /** A Rs 1 test charge: ledgered as INR 1 under its own purpose, so revenue never counts it. */
+  test?: boolean;
 }
 
 /**
@@ -340,9 +395,11 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
    */
   const existing = await prisma.subscription.findUnique({
     where: { tenantId: input.tenantId },
-    select: { priorRazorpaySubscriptionId: true },
+    select: { priorRazorpaySubscriptionId: true, plan: true, status: true },
   });
   const prior = existing?.priorRazorpaySubscriptionId ?? null;
+  // What they held BEFORE this activation, for the receipt's wording only.
+  const previousPlan = existing ? entitledPlan(existing.plan, existing.status) : null;
 
   // The billing record the app owns. Computed here rather than copied from Razorpay,
   // so it exists whether or not a webhook ever arrives - see lib/billing/renewal.ts.
@@ -392,27 +449,60 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
   // Keyed on the Razorpay payment id, which is unique, so the webhook and /verify
   // firing for the same charge produce ONE row rather than two.
   if (input.paymentId) {
-    await prisma.payment
-      .upsert({
-        where: { providerPaymentId: input.paymentId },
-        create: {
+    const subId = input.razorpaySubscriptionId ?? null;
+    const seen = await prisma.payment
+      .findUnique({ where: { providerPaymentId: input.paymentId }, select: { id: true } })
+      .catch(() => null);
+    // Whether this subscription has been charged before decides "renewed" against
+    // "now active". Counted before the row is written, so the first charge sees zero.
+    const earlierCharges =
+      seen || !subId
+        ? 0
+        : await prisma.payment
+            .count({ where: { notes: { path: ["razorpaySubscriptionId"], equals: subId } } })
+            .catch(() => 0);
+    const created = seen
+      ? false
+      : await prisma.payment
+      .create({
+        data: {
           providerPaymentId: input.paymentId,
           provider: "razorpay",
-          purpose: "subscription",
+          // A test charge has its own purpose, which is what keeps it off the revenue page.
+          purpose: input.test ? "subscription_test" : "subscription",
           plan: input.plan,
           tenantId: input.tenantId,
           status: "captured",
           method: input.method ?? null,
-          currency: "USD",
+          currency: input.test ? "INR" : "USD",
           // `amount` is the paise column for INR funnel payments. Subscriptions are
           // billed in USD, so this holds CENTS, which the Accounts page divides by 100
-          // with the currency beside it rather than guessing from the number.
-          amount: input.amountUsd != null ? Math.round(input.amountUsd * 100) : null,
-          notes: { razorpaySubscriptionId: input.razorpaySubscriptionId ?? null },
+          // with the currency beside it rather than guessing from the number. A test
+          // charge is the tier's test amount in paise.
+          amount: input.test
+            ? TEST_AMOUNT_PAISE[input.plan]
+            : input.amountUsd != null
+              ? Math.round(input.amountUsd * 100)
+              : null,
+          notes: { razorpaySubscriptionId: subId },
         },
-        update: {},
       })
-      .catch(() => {});
+      .then(() => true)
+      // A unique clash is the webhook and /verify racing on one charge: the other one
+      // wrote it, and the other one sends the receipt.
+      .catch(() => false);
+
+    // ONE receipt per charge, keyed on the ledger row this call created.
+    if (created) {
+      await sendBillingEmail({
+        tenantId: input.tenantId,
+        kind: billingChangeKind(previousPlan, input.plan, earlierCharges > 0),
+        plan: input.plan,
+        amountText: input.test ? `${testAmountText(input.plan)} (test charge)` : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
+        paymentId: input.paymentId,
+        renewsAt: data.renewsAt,
+      });
+    }
   }
 
   /**
@@ -594,4 +684,61 @@ export async function clearPaidSlots(tenantId: string): Promise<void> {
     where: { tenantId },
     data: { extraAgencyTenants: 0, razorpaySlotSubscriptionId: null },
   });
+}
+
+/* ---------------------------------------------------------------------------
+ * TEST DOWNGRADE - switch the live test subscription to a cheaper tier, no charge
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Which tier a TEST Razorpay plan id belongs to, or null when it is not a test plan.
+ *
+ * 🔴 THE WEBHOOK MUST ASK THIS BEFORE IT READS notes.plan. A downgrade changes the
+ * subscription's plan_id but Razorpay keeps the notes it was created with, so a renewal
+ * after a downgrade still says the OLD tier in its notes. Reading the notes first would
+ * hand the higher tier straight back on the next charge.
+ */
+export async function testPlanForRazorpayPlanId(razorpayPlanId: string | null): Promise<PlanId | null> {
+  if (!razorpayPlanId) return null;
+  const row = await prisma.razorpayPlan.findFirst({ where: { razorpayPlanId }, select: { planKey: true } });
+  const key = row?.planKey ?? "";
+  const tier = key.endsWith("_TEST_INR") ? key.slice(0, -"_TEST_INR".length) : null;
+  return tier && (["GATE", "SIGNAL", "AGENCY", "ENTERPRISE"] as const).includes(tier as PlanId) ? (tier as PlanId) : null;
+}
+
+/**
+ * Move a tenant's live TEST subscription onto a lower tier's test plan, effective now,
+ * with nothing charged today. From the next renewal Razorpay charges the lower amount,
+ * and keeps doing so until it is cancelled.
+ *
+ * Razorpay allows a plan change only on CARD subscriptions; a UPI one is refused and
+ * the error is passed back as-is so the screen can say so.
+ */
+export async function switchTestSubscriptionPlan(tenantId: string, plan: PlanId): Promise<void> {
+  const sub = await prisma.subscription.findUnique({
+    where: { tenantId },
+    select: { razorpaySubscriptionId: true },
+  });
+  if (!sub?.razorpaySubscriptionId) throw new Error("There is no live subscription on this workspace to switch.");
+  const planId = await getOrCreateTestPlan(plan);
+  await razorpayRequest("PATCH", `/subscriptions/${encodeURIComponent(sub.razorpaySubscriptionId)}`, await platformKeys(), {
+    plan_id: planId,
+    schedule_change_at: "now",
+  });
+  // Only after Razorpay accepted it, so the app never runs a cheaper plan than the card.
+  await prisma.$transaction([
+    prisma.subscription.update({
+      where: { tenantId },
+      data: {
+        plan,
+        status: "ACTIVE",
+        razorpayPlanId: planId,
+        limitsSnapshot: snapshotFor(plan),
+        pendingPlan: null,
+        pendingTerm: null,
+      },
+    }),
+    prisma.tenant.update({ where: { id: tenantId }, data: { plan } }),
+  ]);
+  forgetTenantActive(tenantId);
 }

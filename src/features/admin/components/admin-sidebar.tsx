@@ -155,6 +155,11 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // The owner's own billing checks. Test rows charge real money at INR 1.10 to 1.40.
+    title: "Payments",
+    items: [{ href: "/admin/test-payments", label: "Test payments" }],
+  },
+  {
     title: "Account",
     items: [
       { href: "/admin/ai", label: "AI" },

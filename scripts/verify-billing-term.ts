@@ -309,7 +309,7 @@ expect(
 );
 expect(
   "activation cancels the id from its own column",
-  /select: \{ priorRazorpaySubscriptionId: true \}[\s\S]{0,200}?existing\?\.priorRazorpaySubscriptionId/.test(subsSrc),
+  /select: \{ priorRazorpaySubscriptionId: true[^}]*\}[\s\S]{0,200}?existing\?\.priorRazorpaySubscriptionId/.test(subsSrc),
   "reading razorpaySubscriptionId instead compares the new id against itself and never cancels",
 );
 /**

@@ -20,6 +20,8 @@ import {
   setPaidSlots,
   clearPaidSlots,
   SLOT_NOTE_KIND,
+  TEST_NOTE,
+  testPlanForRazorpayPlanId,
   type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
 import { firePlatformPurchase } from "@/lib/billing/platform-events";
@@ -179,6 +181,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, slotsEnded: true });
   }
 
+  /**
+   * A Rs 1.x TEST subscription from the super-admin test rows. Same activation, but it
+   * never reaches Meta and is ledgered apart from revenue. Its tier comes from the LIVE
+   * plan id first: a test downgrade switches the plan but Razorpay keeps the original
+   * notes, so notes.plan would hand the higher tier back on the next renewal.
+   */
+  const isTest = asStr(notes.test) === TEST_NOTE;
+  const testPlan = isTest ? await testPlanForRazorpayPlanId(asStr(subEntity.plan_id)) : null;
+
+  if (isTest && (event === "subscription.activated" || event === "subscription.charged")) {
+    const notedPlan = asStr(notes.plan);
+    const plan: PlanId | null =
+      testPlan ?? (notedPlan && (PLAN_IDS as readonly string[]).includes(notedPlan) ? (notedPlan as PlanId) : null);
+    if (!plan) return NextResponse.json({ ok: true, warning: "test plan not resolved" });
+    await activateSubscription({
+      tenantId,
+      plan,
+      term: "MONTHLY",
+      razorpaySubscriptionId,
+      razorpayPlanId: asStr(subEntity.plan_id),
+      currentPeriodStart: asDateFromUnix(subEntity.current_start),
+      currentPeriodEnd: asDateFromUnix(subEntity.current_end),
+      paymentId: asStr(paymentEntity.id),
+      method: asStr(paymentEntity.method),
+      test: true,
+    });
+    return NextResponse.json({ ok: true, activated: true, test: true });
+  }
+
   if (event === "subscription.activated" || event === "subscription.charged") {
     // Plan from notes, else the tenant's stored subscription plan.
     let plan = toPaidPlan(notes.plan);
@@ -235,6 +266,18 @@ export async function POST(req: Request) {
       });
     }
     return NextResponse.json({ ok: true, activated: true });
+  }
+
+  /**
+   * 🔴 ONLY THE CURRENT SUBSCRIPTION MAY END OR LAPSE THE PLAN. An upgrade or a term
+   * switch cancels the subscription it replaced, and Razorpay then sends
+   * subscription.cancelled for that OLD id with this tenant in its notes. Acting on it
+   * ended the plan the customer had just paid for. An event for any id other than the
+   * one on the row is about a subscription already replaced, and is acknowledged only.
+   */
+  const live = await prisma.subscription.findUnique({ where: { tenantId }, select: { razorpaySubscriptionId: true } });
+  if (razorpaySubscriptionId && live?.razorpaySubscriptionId && live.razorpaySubscriptionId !== razorpaySubscriptionId) {
+    return NextResponse.json({ ok: true, ignored: "replaced subscription" });
   }
 
   if (event === "subscription.pending") {
