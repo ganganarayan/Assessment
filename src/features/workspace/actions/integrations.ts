@@ -45,6 +45,9 @@ export interface IntegrationSettingsView {
   paymentLinkDescription: string;
   /** Where THIS tenant must point Razorpay → Settings → Webhooks. */
   webhookUrl: string;
+  /** PLATFORM only: where Razorpay sends Assess360 subscription events. A different
+   *  address from webhookUrl (that one is one-time payments and payment links). */
+  subscriptionWebhookUrl?: string;
   /** Where THIS tenant points an EXTERNAL gateway's success redirect. One string for
    *  every respondent; the browser is matched on arrival. See api/pay/return. */
   paymentReturnUrl: string;

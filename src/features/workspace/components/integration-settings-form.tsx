@@ -7,6 +7,21 @@ import { Label } from "@/components/ui/label";
 import { CopySecretButton, GenerateWebhookSecretButton } from "@/components/copy-secret-button";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 
+/**
+ * The events each Razorpay webhook must be subscribed to. Keep in step with HANDLED in
+ * api/billing/razorpay/route.ts (subscriptions) and lib/payments/razorpay-webhook.ts
+ * (one-time payments): an event missing from Razorpay's ticks is never delivered.
+ */
+const SUBSCRIPTION_EVENTS = [
+  "subscription.activated",
+  "subscription.charged",
+  "subscription.pending",
+  "subscription.halted",
+  "subscription.cancelled",
+  "subscription.completed",
+] as const;
+const PAYMENT_EVENTS = ["payment.captured", "payment_link.paid"] as const;
+
 type SaveResult = { ok: boolean; error?: string };
 type SaveMeta = (pixelId: string, capiToken: string) => Promise<SaveResult>;
 type SaveRazorpay = (keyId: string, keySecret: string, webhookSecret: string) => Promise<SaveResult>;
@@ -223,8 +238,9 @@ export function IntegrationSettingsForm({
       <div className="flex flex-col gap-3 border-t pt-4">
         <p className="text-sm font-medium">Razorpay - GST account</p>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Your main account: funnel payments and payment links run on this one unless you pick the
-          other. Leave it blank if you do not collect money here.
+          {isPlatform
+            ? "The account Assess360 subscriptions are billed on: every workspace's plan, upgrade and renewal. Payment links you send also run here unless you pick the non-GST account."
+            : "Your main account: funnel payments and payment links run on this one unless you pick the other. Leave it blank if you do not collect money here."}
         </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Key ID</Label>
@@ -251,14 +267,53 @@ export function IntegrationSettingsForm({
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Webhook URL (point Razorpay → Settings → Webhooks here)</Label>
-          <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
-          <p className="text-xs text-[var(--muted-foreground)]">
-            Events: payment.captured and payment_link.paid. The non-GST account below points at this
-            same address - one URL serves both, and the signature tells us which account sent it.
-          </p>
-        </div>
+        {isPlatform && initial.subscriptionWebhookUrl ? (
+          <>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Webhook 1 of 2, subscriptions (required)</Label>
+              <Input readOnly value={initial.subscriptionWebhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                In Razorpay → Settings → Webhooks, add a webhook with this URL, the webhook secret above,
+                and tick all six of these events:
+              </p>
+              <ul className="list-disc pl-5 font-mono text-xs text-[var(--muted-foreground)]">
+                {SUBSCRIPTION_EVENTS.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Activated and charged start or renew a plan, pending and halted mark a failed renewal,
+                cancelled and completed end it. Without this webhook a paid plan never switches on.
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Webhook 2 of 2, payment links (only if you send payment links)</Label>
+              <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                A separate webhook in the same Razorpay account, with the same webhook secret above. Tick
+                these two events:
+              </p>
+              <ul className="list-disc pl-5 font-mono text-xs text-[var(--muted-foreground)]">
+                {PAYMENT_EVENTS.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Subscriptions never arrive here, and payment links never arrive at webhook 1. The non-GST
+                account below uses this same payment-links URL.
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">Webhook URL (point Razorpay → Settings → Webhooks here)</Label>
+            <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Events: {PAYMENT_EVENTS.join(" and ")}. The non-GST account below points at this same
+              address - one URL serves both, and the signature tells us which account sent it.
+            </p>
+          </div>
+        )}
         <div>
           <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save GST Razorpay settings</Button>
         </div>
@@ -323,9 +378,12 @@ export function IntegrationSettingsForm({
           <Label className="text-xs">Webhook URL (point Razorpay &rarr; Settings &rarr; Webhooks here)</Label>
           <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
           <p className="text-xs text-[var(--muted-foreground)]">
-            Events: payment.captured and payment_link.paid. The same address as the GST account above,
-            on purpose - there is no second URL to create. Add a webhook in THIS account&apos;s Razorpay
-            dashboard too, pointing here, and paste the secret it generates into the field above. We
+            Events: {PAYMENT_EVENTS.join(" and ")}
+            {isPlatform ? " (no subscription events: subscriptions are only ever billed on the GST account)" : ""}.
+            The same address as the GST account{isPlatform ? "'s payment-links webhook" : " above"}, on
+            purpose - there is no second URL to create. Add a webhook in THIS account&apos;s Razorpay
+            dashboard too, pointing here, with this account&apos;s own secret (Generate new puts one on
+            your clipboard to paste into Razorpay). We
             try both accounts&apos; secrets against the signature and record whichever one matched, so
             the secret is what names the account, never the address. Leave this account&apos;s webhook
             out and its payments arrive unverifiable: nothing is recorded and nothing is reported.

@@ -52,6 +52,7 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     paymentLinkDescription: s?.paymentLinkDescription ?? "",
     // The platform/Gita webhook is the un-suffixed route.
     webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay`,
+    subscriptionWebhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/billing/razorpay`,
     // The platform scope has no tenant slug to route a return to, and its own funnels
     // use Razorpay directly, so there is nothing to paste anywhere. Blank, and the
     // field renders as the empty box it is rather than a broken-looking URL.
