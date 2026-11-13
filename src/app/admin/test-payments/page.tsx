@@ -6,6 +6,8 @@ import { TEST_AMOUNT_PAISE } from "@/lib/billing/razorpay-subscriptions";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { formatIST, formatISTDate } from "@/lib/date";
 import { TestPaymentsTable } from "@/features/billing/components/test-payments-table";
+import { getPaidLog } from "@/features/billing/data/paid-log";
+import { PaidLogTable } from "@/features/billing/components/paid-log-table";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +70,8 @@ export default async function TestPaymentsPage({ searchParams }: { searchParams:
     }));
   }
 
+  const platformLog = await getPaidLog(null);
+
   const plans = PLAN_IDS.map((id) => ({
     id,
     label: PLAN_LABEL[id],
@@ -94,6 +98,8 @@ export default async function TestPaymentsPage({ searchParams }: { searchParams:
         plans={plans}
         payments={payments}
       />
+      {/* The platform keys' own Settings test payments (GST and Non-GST). */}
+      <PaidLogTable log={platformLog} title="Paid log (platform account test payments)" />
     </div>
   );
 }

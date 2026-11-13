@@ -40,6 +40,7 @@ export const FEATURE_RELEASE_KEYS = [
   "waTemplates",
   "gateResult",
   "lifecycle",
+  "testPayment",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -175,6 +176,19 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     defaultReleased: false,
     // No /w route: the sequence is the platform talking to its own trial signups, and
     // a tenant has no business seeing it. The review screen lives under /admin.
+    routes: [],
+  },
+  {
+    key: "testPayment",
+    label: "Test Payment",
+    blurb:
+      "A Test payment button on each Razorpay account in Settings: a small real charge (default 1 INR or 1 USD) that proves the keys and the webhook work.",
+    whileHeld:
+      "The Test payment row is hidden in Settings and starting one is refused. Test payments already made stay in the Billing paid log.",
+    // A real charge on the workspace's own account. Never reaches Meta, revenue or the
+    // funnel: it is ledgered as connection_test and the webhook returns before CAPI.
+    defaultReleased: false,
+    // No route of its own: it is one row inside each Razorpay card in Settings.
     routes: [],
   },
 ];

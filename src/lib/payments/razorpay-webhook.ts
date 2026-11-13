@@ -8,6 +8,8 @@ import { recordCapture } from "@/lib/meta/capi-log";
 import { emitCompletedPaid } from "@/lib/events/completion";
 import { settlePaymentLink } from "@/features/payments/settle";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
+import { recordTestPayment } from "@/lib/payments/test-payment-record";
+import { TEST_PAYMENT_PURPOSE } from "@/features/payments/test-payment-shared";
 
 /**
  * Shared Razorpay webhook handler, parameterized by TENANT.
@@ -126,6 +128,31 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
   // Nothing is recorded until money has actually moved.
   if (!settled) {
     return NextResponse.json({ ok: true, ignored: "not settled" });
+  }
+
+  // 0) TEST PAYMENT from Settings. Booked here and returned BEFORE the CAPI log below:
+  //    a test charge must never reach Meta, revenue or the funnel. The webhook stamp is
+  //    what tells the owner this account's webhook is set up correctly.
+  if (asStr(notes.purpose) === TEST_PAYMENT_PURPOSE) {
+    const tag = asStr(notes.scope);
+    const testTenant = tag === "_platform" ? null : tag;
+    // The order's scope must be the scope whose secret signed this webhook.
+    if (tag && testTenant === tenantId && asStr(notes.account) === signedBy) {
+      await recordTestPayment({
+        tenantId: testTenant,
+        account: signedBy,
+        providerPaymentId,
+        providerOrderId: asStr(payment.order_id),
+        amountMinor: amount,
+        currency,
+        method: asStr(payment.method),
+        via: "webhook",
+        event,
+      });
+    } else {
+      console.error("[razorpay] webhook: test payment scope or account mismatch, ignored", providerPaymentId);
+    }
+    return NextResponse.json({ ok: true, settled: "test_payment" });
   }
 
   // 1) Record EVERY captured payment in the CAPI log; auto-fire per the amount rules

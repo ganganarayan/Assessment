@@ -1,4 +1,5 @@
 import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { featureAllowedFor } from "@/lib/features/release";
 import { ViewOnly, ViewOnlyNote } from "@/components/view-only";
 import { getIntegrationSettings, updateMetaSettings, updateMetaNotUsed, updateRazorpaySettings, updateRazorpayNonGstSettings, updatePaymentLinkDescription, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
@@ -53,6 +54,8 @@ export default async function WorkspaceSettingsPage() {
   const operatingOther = impersonating || viaAgency;
   // VIEW staff read the settings; the forms are greyed out rather than failing on save.
   const readOnly = !canEdit(user);
+  // The Test Payment row: released, or an exempt scope (internal workspaces).
+  const testPaymentOn = await featureAllowedFor("testPayment", tenantId);
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
@@ -117,6 +120,7 @@ export default async function WorkspaceSettingsPage() {
             savePayDescriptionAction={updatePaymentLinkDescription}
             saveVidapulseAction={updateVidapulseSettings}
             saveMetaNotUsedAction={updateMetaNotUsed}
+            testPaymentBack={testPaymentOn && !readOnly ? "w" : null}
           /></ViewOnly>
         </CardContent>
       </Card>

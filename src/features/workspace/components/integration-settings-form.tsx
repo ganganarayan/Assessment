@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopySecretButton, GenerateWebhookSecretButton } from "@/components/copy-secret-button";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
+import { TestPaymentRow } from "@/features/payments/components/test-payment-row";
 
 /**
  * The events each Razorpay webhook must be subscribed to. Keep in step with HANDLED in
@@ -45,6 +46,7 @@ export function IntegrationSettingsForm({
   banner,
   showMeta = true,
   isPlatform = false,
+  testPaymentBack = null,
 }: {
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
@@ -73,6 +75,11 @@ export function IntegrationSettingsForm({
    * and none of their business to begin with.
    */
   isPlatform?: boolean;
+  /**
+   * Set when the Test Payment feature is allowed for this scope (released, or an
+   * exempt scope): the settings screen Razorpay returns to. Null hides the row.
+   */
+  testPaymentBack?: "w" | "admin" | null;
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
@@ -287,6 +294,9 @@ export function IntegrationSettingsForm({
             </div>
           </>
         ) : null}
+        {testPaymentBack && initial.razorpayKeyId && initial.hasRazorpaySecret ? (
+          <TestPaymentRow account="GST" back={testPaymentBack} />
+        ) : null}
         <div>
           <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save GST Razorpay settings</Button>
         </div>
@@ -346,6 +356,9 @@ export function IntegrationSettingsForm({
             The secret THIS account&apos;s webhook generates, not the GST one. The two differ.
           </p>
         </div>
+        {testPaymentBack && initial.razorpayNonGstKeyId && initial.hasRazorpayNonGstSecret ? (
+          <TestPaymentRow account="NON_GST" back={testPaymentBack} />
+        ) : null}
         <div>
           <Button size="sm" onClick={saveRazorpayNonGst} disabled={pending}>Save Non-GST Razorpay settings</Button>
         </div>

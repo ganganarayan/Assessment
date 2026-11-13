@@ -18,6 +18,8 @@ import {
 import { BillingPlans } from "@/features/billing/components/billing-plans";
 import { CancelPlan } from "@/features/billing/components/cancel-plan";
 import { prisma } from "@/lib/db/prisma";
+import { getPaidLog } from "@/features/billing/data/paid-log";
+import { PaidLogTable } from "@/features/billing/components/paid-log-table";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +60,7 @@ function featuresFor(plan: PlanId): string[] {
 
 export default async function BillingPage() {
   const { tenantId } = await requireWorkspace();
-  const [user, resolved, usage, agency] = await Promise.all([
+  const [user, resolved, usage, agency, paidLog] = await Promise.all([
     getCurrentUser(),
     resolvePlan(tenantId),
     // The numbers behind the plan cards. Shown ABOVE them: "what am I using" is the
@@ -69,6 +71,8 @@ export default async function BillingPage() {
     // this is the page somebody opens when they are deciding whether to pay for one
     // more, so the count belongs next to the price.
     agencyTenantUsage(tenantId),
+    // Every successful charge with its Razorpay payment id, shown on every branch below.
+    getPaidLog(tenantId),
   ]);
 
   // The two facts the cancel control needs, which resolvePlan does not carry: when the
@@ -120,6 +124,7 @@ export default async function BillingPage() {
             they can raise it or add another workspace.
           </p>
         </div>
+        <PaidLogTable log={paidLog} />
       </div>
     );
   }
@@ -148,6 +153,7 @@ export default async function BillingPage() {
             flag from the platform console.
           </p>
         </div>
+        <PaidLogTable log={paidLog} />
       </div>
     );
   }
@@ -278,6 +284,8 @@ export default async function BillingPage() {
           />
         </div>
       ) : null}
+
+      <PaidLogTable log={paidLog} />
     </div>
   );
 }

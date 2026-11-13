@@ -1,5 +1,6 @@
 import { getAppSetting } from "@/features/events/data";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { featureAllowedFor } from "@/lib/features/release";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { ThemeSelector } from "@/features/admin/components/theme-selector";
 import { AbandonedSetting } from "@/features/admin/components/abandoned-setting";
@@ -80,6 +81,7 @@ export default async function SettingsPage() {
     getNurtureSettings(),
   ]);
   const impersonating = actingId !== null;
+  const testPaymentOn = await featureAllowedFor("testPayment", actingId);
 
   const reportFooter = impersonating ? await getReportFooter() : null;
   // Acting-scoped: this tenant while impersonating, the platform row otherwise.
@@ -190,6 +192,8 @@ export default async function SettingsPage() {
             // Platform-only copy (the subscription note) hides itself inside a
             // workspace, where the reader is a customer rather than us.
             isPlatform={!impersonating}
+            // Platform keys are always testable; inside a workspace, the switch decides.
+            testPaymentBack={testPaymentOn ? "admin" : null}
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."
