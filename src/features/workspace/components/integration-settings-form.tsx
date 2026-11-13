@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CopySecretButton } from "@/components/copy-secret-button";
+import { CopySecretButton, GenerateWebhookSecretButton } from "@/components/copy-secret-button";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 
 type SaveResult = { ok: boolean; error?: string };
@@ -243,9 +243,12 @@ export function IntegrationSettingsForm({
           <Label className="text-xs">
             Webhook secret {initial.hasRazorpayWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasRazorpayWebhookSecret ? "••••••••" : "Webhook signing secret"} />
-            {initial.hasRazorpayWebhookSecret ? <CopySecretButton name="razorpayWebhookSecret" /> : null}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {initial.hasRazorpayWebhookSecret ? <CopySecretButton name="razorpayWebhookSecret" /> : null}
+              <GenerateWebhookSecretButton account="gst" hasExisting={initial.hasRazorpayWebhookSecret} />
+            </div>
           </div>
         </div>
         <div className="flex flex-col gap-1">
@@ -299,14 +302,17 @@ export function IntegrationSettingsForm({
             Webhook secret{" "}
             {initial.hasRazorpayNonGstWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               type="password"
               value={ngWebhookSecret}
               onChange={(e) => setNgWebhookSecret(e.target.value)}
               placeholder={initial.hasRazorpayNonGstWebhookSecret ? "••••••••" : "Webhook signing secret"}
             />
-            {initial.hasRazorpayNonGstWebhookSecret ? <CopySecretButton name="razorpayNonGstWebhookSecret" /> : null}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {initial.hasRazorpayNonGstWebhookSecret ? <CopySecretButton name="razorpayNonGstWebhookSecret" /> : null}
+              <GenerateWebhookSecretButton account="nonGst" hasExisting={initial.hasRazorpayNonGstWebhookSecret} />
+            </div>
           </div>
           <p className="text-xs text-[var(--muted-foreground)]">
             The secret THIS account&apos;s webhook generates, not the GST one. The two differ, and the

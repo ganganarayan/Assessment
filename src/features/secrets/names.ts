@@ -42,3 +42,9 @@ export type ScopedSecret = (typeof SCOPED_SECRETS)[number];
 export type PlatformSecret = (typeof PLATFORM_SECRETS)[number];
 export type RecordSecret = (typeof RECORD_SECRETS)[number];
 export type SecretName = ScopedSecret | PlatformSecret | RecordSecret;
+
+/** What the secret actions hand back: the value, once, for the clipboard only. */
+export type SecretResult = { ok: true; value: string } | { ok: false; error: string };
+
+/** Which Razorpay account a regenerated webhook secret belongs to. */
+export type WebhookAccount = "gst" | "nonGst";

@@ -3,9 +3,11 @@
 import { type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { decryptWithSecret } from "@/lib/crypto";
-import { resolveActingScope, scopeOwnerDenied, configTenantOf } from "@/lib/tenant/acting";
-import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { randomBytes } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { decryptWithSecret, encryptWithSecret } from "@/lib/crypto";
+import { resolveActingScope, scopeOwnerDenied, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
+import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { audit } from "@/lib/audit/log";
 import {
@@ -14,6 +16,8 @@ import {
   type ScopedSecret,
   type PlatformSecret,
   type SecretName,
+  type SecretResult,
+  type WebhookAccount,
 } from "@/features/secrets/names";
 
 /**
@@ -34,8 +38,6 @@ import {
  *    or the platform row when they entered none. Exactly the row the screen edits.
  *  - Ad account token: the account must belong to that same config tenant.
  */
-
-type CopyResult = { ok: true; value: string } | { ok: false; error: string };
 
 const SCOPED_COLUMN: Record<ScopedSecret, keyof Prisma.AppSettingSelect> = {
   metaCapiToken: "metaCapiTokenEnc",
@@ -83,7 +85,7 @@ function readColumn(row: Record<string, unknown> | null, col: string): string | 
   return typeof v === "string" && v ? v : null;
 }
 
-export async function copyStoredSecret(name: SecretName, recordId?: string): Promise<CopyResult> {
+export async function copyStoredSecret(name: SecretName, recordId?: string): Promise<SecretResult> {
   const scope = await resolveActingScope();
   const denied = scopeOwnerDenied(scope);
   if (denied) return denied;
@@ -150,5 +152,50 @@ export async function copyStoredSecret(name: SecretName, recordId?: string): Pro
     summary: `Copied the saved ${name} to the clipboard`,
   });
 
+  return { ok: true, value };
+}
+
+/**
+ * Make a NEW Razorpay webhook secret for one account, save it over the old one, and
+ * hand it back once so the button can put it on the clipboard. The old secret is gone
+ * the moment this returns, so Razorpay's webhooks fail their signature check until the
+ * new value is pasted into Razorpay → Settings → Webhooks. The button warns before it
+ * runs when a secret is already saved. If the clipboard write fails, the Copy button
+ * beside it still reads the new one.
+ *
+ * Same scope and owner rule as copyStoredSecret: the caller's own config row only.
+ */
+export async function regenerateWebhookSecret(account: WebhookAccount): Promise<SecretResult> {
+  if (account !== "gst" && account !== "nonGst") return { ok: false, error: "Unknown account." };
+  const scope = await resolveActingScope();
+  const denied = scopeOwnerDenied(scope) ?? scopeEditDenied(scope);
+  if (denied) return denied;
+
+  const tenantId = configTenantOf(scope);
+  const value = randomBytes(24).toString("base64url");
+  const enc = encryptWithSecret(value, env.BETTER_AUTH_SECRET);
+  const data =
+    account === "gst" ? { razorpayWebhookSecretEnc: enc } : { razorpayNonGstWebhookSecretEnc: enc };
+
+  // The platform row is created bare, exactly as the platform save actions do.
+  await prisma.appSetting.upsert({
+    where: appSettingWhere(tenantId) as Prisma.AppSettingWhereUniqueInput,
+    update: data,
+    create: isPlatformScope(tenantId)
+      ? { id: "singleton", ...data }
+      : { id: tenantAppSettingId(tenantId), tenantId, ...data },
+  });
+
+  await audit({
+    actor: { id: scope.user.id, email: scope.user.email },
+    action: "secret.regenerate",
+    tenantId,
+    targetType: "secret",
+    targetId: account === "gst" ? "razorpayWebhookSecret" : "razorpayNonGstWebhookSecret",
+    summary: `Generated a new ${account === "gst" ? "GST" : "non-GST"} Razorpay webhook secret`,
+  });
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/w/settings");
   return { ok: true, value };
 }
