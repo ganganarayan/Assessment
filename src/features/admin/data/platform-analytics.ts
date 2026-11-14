@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { istDateRangeToUtc } from "@/lib/date";
 import { PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
 import { PLATFORM_OWNER_EMAIL } from "@/lib/auth/platform";
+import { PAYMENT_TEST_TENANT_ID } from "@/lib/tenant/platform-tenant";
 
 /**
  * Aggregations for the Assess360 SaaS marketing-funnel dashboard (super-admin).
@@ -52,9 +53,10 @@ export async function getPlatformFunnelStats(range?: Range): Promise<PlatformFun
         NOT: { email: { equals: PLATFORM_OWNER_EMAIL, mode: "insensitive" } },
       },
     }),
-    prisma.tenant.count({ where: createdAt ? { createdAt } : {} }),
+    prisma.tenant.count({ where: { id: { not: PAYMENT_TEST_TENANT_ID }, ...(createdAt ? { createdAt } : {}) } }),
     // Paid is point-in-time (current active subscriptions), not range-filtered.
-    prisma.subscription.findMany({ where: { status: "ACTIVE" }, select: { plan: true } }),
+    // The hidden Test payments workspace pays pennies, not the plan price: never MRR.
+    prisma.subscription.findMany({ where: { status: "ACTIVE", tenantId: { not: PAYMENT_TEST_TENANT_ID } }, select: { plan: true } }),
   ]);
 
   const mrrUsd = activeSubs.reduce((sum, s) => sum + (PLAN_PRICE_USD[s.plan as PlanId] ?? 0), 0);

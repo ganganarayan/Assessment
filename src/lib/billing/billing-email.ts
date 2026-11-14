@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/nurture/send";
 import { supportEmailFor } from "@/lib/billing/gate";
 import { formatISTDate } from "@/lib/date";
 import { PLAN_LABEL, type BillingTerm, type PlanId } from "@/lib/billing/plans";
+import { isPaymentTestTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * The billing emails a workspace owner receives: one per charge (subscribed, upgraded,
@@ -78,8 +79,12 @@ export interface BillingEmailInput {
 
 export async function sendBillingEmail(input: BillingEmailInput): Promise<void> {
   try {
+    // The hidden Test payments workspace has no login of its own: its emails go to the
+    // platform owner (the first super admin), who is the one running the test.
     const owner = await prisma.user.findFirst({
-      where: { tenantId: input.tenantId, deletedAt: null, staffPermission: null },
+      where: isPaymentTestTenant(input.tenantId)
+        ? { role: "SUPER_ADMIN", deletedAt: null }
+        : { tenantId: input.tenantId, deletedAt: null, staffPermission: null },
       orderBy: { createdAt: "asc" },
       select: { email: true, name: true },
     });

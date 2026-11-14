@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { istDateRangeToUtc } from "@/lib/date";
 import { ourMicroUsd } from "@/lib/ai/cost-report";
 import { apportion, type BilledDay, type UsageRow } from "@/lib/billing/ai-apportion";
+import { PAYMENT_TEST_TENANT_ID } from "@/lib/tenant/platform-tenant";
 
 /**
  * The books, per tenant: what they paid us, what they cost us, what is left.
@@ -84,7 +85,7 @@ export async function getAccounts(range?: Range): Promise<{ rows: AccountRow[]; 
 
   const [tenants, revenue, lastPaid, usage, costDays] = await Promise.all([
     prisma.tenant.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, id: { not: PAYMENT_TEST_TENANT_ID } },
       select: { id: true, name: true, slug: true, subscription: { select: { plan: true, status: true } } },
       orderBy: { createdAt: "asc" },
     }),

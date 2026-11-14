@@ -14,46 +14,61 @@ import {
   endSubscription,
   platformKeyId,
   switchTestSubscriptionPlan,
-  testAmountText,
+  testPriceText,
+  TEST_PRICE_BOUNDS,
+  type TestPrice,
 } from "@/lib/billing/razorpay-subscriptions";
 import { sendBillingEmail } from "@/lib/billing/billing-email";
 import { forgetTenantActive } from "@/lib/tenant/active";
-import { isPlatformTenant } from "@/lib/tenant/platform-tenant";
+import { PAYMENT_TEST_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
- * The super-admin Rs 1.x test rows (owner, 12-11-2026). Every action takes the target
- * workspace explicitly rather than the acting cookie, so the owner can test any workspace
- * from one screen without entering it.
+ * The super-admin Test payments screen (owner, 14-11-2026): platform payments tested end
+ * to end with real money, at an amount and currency the owner types, with NO workspace to
+ * pick. Every action bills the one hidden test workspace (PAYMENT_TEST_TENANT_ID), which
+ * is created on the first checkout.
  *
- * Subscribe and upgrade open a REAL Razorpay checkout at the tier's test amount and go
+ * Subscribe and upgrade open a REAL Razorpay checkout on the platform GST account and go
  * through the same activation a customer's payment does. Downgrade switches the live
- * subscription to the cheaper test plan with no charge. Cancel ends it NOW (a customer's
- * cancel waits for the period end) so the owner can watch the features switch off.
+ * subscription to the cheaper tier with no charge today. Cancel ends it NOW (a customer's
+ * cancel waits for the period end) so the owner can watch the plan switch off.
  */
 
+const TEST_TENANT = PAYMENT_TEST_TENANT_ID;
 const RANK: Record<PlanId, number> = { GATE: 1, SIGNAL: 2, AGENCY: 3, ENTERPRISE: 4 };
 
 function toPlanId(v: unknown): PlanId | null {
   return typeof v === "string" && (PLAN_IDS as readonly string[]).includes(v) ? (v as PlanId) : null;
 }
 
-/** A workspace the test may act on: real, billed on its own, not the platform, not internal. */
-async function testTarget(tenantId: string) {
-  if (!tenantId || isPlatformTenant(tenantId)) return { error: "Pick a workspace first." } as const;
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { id: true, name: true, unlimited: true, agencyAdminTenantId: true, deletedAt: true, razorpayCustomerId: true },
+/** The typed amount, checked: a currency, a number with at most 2 decimals, within bounds. */
+function toPrice(currencyInput: unknown, amountInput: unknown): TestPrice | { error: string } {
+  const currency = currencyInput === "USD" ? "USD" : currencyInput === "INR" ? "INR" : null;
+  if (!currency) return { error: "Pick INR or USD." };
+  const text = String(amountInput ?? "").trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return { error: "Type the amount as a number, like 1 or 1.10." };
+  const minor = Math.round(Number(text) * 100);
+  const { min, max } = TEST_PRICE_BOUNDS[currency];
+  if (minor < min || minor > max) {
+    return { error: `${currency} amount must be between ${(min / 100).toFixed(2)} and ${(max / 100).toFixed(2)}.` };
+  }
+  return { currency, minor };
+}
+
+/** The hidden test workspace, made on first use. Never parked by a trial: it has none. */
+async function ensureTestTenant() {
+  return prisma.tenant.upsert({
+    where: { id: TEST_TENANT },
+    create: { id: TEST_TENANT, slug: "platform-payment-test", name: "Platform test (payments)" },
+    update: {},
+    select: { id: true, name: true, razorpayCustomerId: true },
   });
-  if (!tenant || tenant.deletedAt) return { error: "Workspace not found." } as const;
-  if (tenant.unlimited) return { error: "That workspace is internal (unlimited), so a plan changes nothing on it. Pick another." } as const;
-  if (tenant.agencyAdminTenantId) return { error: "That is a client workspace billed to its agency. Pick the agency or a standalone workspace." } as const;
-  const owner = await prisma.user.findFirst({
-    where: { tenantId, deletedAt: null, staffPermission: null },
-    orderBy: { createdAt: "asc" },
-    select: { email: true, name: true },
-  });
-  return { tenant, owner } as const;
+}
+
+async function heldPlan(): Promise<PlanId | null> {
+  const current = await resolvePlan(TEST_TENANT);
+  return current.status === "ACTIVE" || current.status === "PAST_DUE" ? current.plan : null;
 }
 
 export interface TestCheckoutStart {
@@ -64,32 +79,32 @@ export interface TestCheckoutStart {
   prefill: { name: string; email: string };
 }
 
-/** Subscribe or upgrade: open a real checkout at the tier's test amount. */
-export async function startTestCheckout(tenantId: string, planInput: string): Promise<ActionResult<TestCheckoutStart>> {
-  await requireSuperAdmin();
+/** Subscribe or upgrade: open a real checkout at the typed amount and currency. */
+export async function startTestCheckout(
+  planInput: string,
+  currencyInput: string,
+  amountInput: string,
+): Promise<ActionResult<TestCheckoutStart>> {
+  const user = await requireSuperAdmin();
   const plan = toPlanId(planInput);
   if (!plan) return { ok: false, error: "Unknown plan." };
-  const t = await testTarget(tenantId);
-  if ("error" in t) return { ok: false, error: t.error ?? "Workspace not usable." };
+  const price = toPrice(currencyInput, amountInput);
+  if ("error" in price) return { ok: false, error: price.error };
 
   const keyId = await platformKeyId();
   if (!keyId) return { ok: false, error: "Platform Razorpay keys are not set (Settings, Payments)." };
 
-  const current = await resolvePlan(tenantId);
-  const held = current.status === "ACTIVE" || current.status === "PAST_DUE" ? current.plan : null;
+  const tenant = await ensureTestTenant();
+  const held = await heldPlan();
   if (held && RANK[plan] <= RANK[held]) {
-    return { ok: false, error: `${PLAN_LABEL[held]} is held already. Use Downgrade for a lower plan.` };
+    return { ok: false, error: `${PLAN_LABEL[held]} is held already. Use Downgrade for a lower plan, or Cancel first.` };
   }
 
   try {
     const { subscriptionId, shortUrl } = await createTestSubscription(
-      {
-        id: t.tenant.id,
-        name: t.tenant.name,
-        razorpayCustomerId: t.tenant.razorpayCustomerId,
-        ownerEmail: t.owner?.email ?? null,
-      },
+      { id: tenant.id, name: tenant.name, razorpayCustomerId: tenant.razorpayCustomerId, ownerEmail: user.email ?? null },
       plan,
+      price,
     );
     return {
       ok: true,
@@ -97,17 +112,23 @@ export async function startTestCheckout(tenantId: string, planInput: string): Pr
         subscriptionId,
         keyId,
         shortUrl,
-        amountText: testAmountText(plan),
-        prefill: { name: t.owner?.name ?? "", email: t.owner?.email ?? "" },
+        amountText: testPriceText(price),
+        prefill: { name: user.name ?? "", email: user.email ?? "" },
       },
     };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Razorpay would not open the checkout." };
+    const msg = e instanceof Error ? e.message : "Razorpay would not open the checkout.";
+    return {
+      ok: false,
+      error:
+        price.currency === "USD"
+          ? `${msg} (A USD subscription needs international payments switched on for the GST Razorpay account.)`
+          : msg,
+    };
   }
 }
 
 export interface TestVerifyInput {
-  tenantId: string;
   razorpay_payment_id: string;
   razorpay_subscription_id: string;
   razorpay_signature: string;
@@ -133,17 +154,17 @@ export async function verifyTestPayment(input: TestVerifyInput): Promise<ActionR
   }
 
   const sub = await prisma.subscription.findUnique({
-    where: { tenantId: input.tenantId },
+    where: { tenantId: TEST_TENANT },
     select: { razorpaySubscriptionId: true, razorpayPlanId: true, pendingPlan: true },
   });
   if (sub?.razorpaySubscriptionId !== input.razorpay_subscription_id) {
-    return { ok: false, error: "That subscription does not belong to this workspace." };
+    return { ok: false, error: "That subscription is not the one this screen opened." };
   }
   const plan = toPlanId(sub.pendingPlan);
   if (!plan) return { ok: false, error: "Paid, but the plan it was for is not recorded. The webhook will settle it." };
 
   await activateSubscription({
-    tenantId: input.tenantId,
+    tenantId: TEST_TENANT,
     plan,
     term: "MONTHLY",
     razorpaySubscriptionId: input.razorpay_subscription_id,
@@ -155,64 +176,64 @@ export async function verifyTestPayment(input: TestVerifyInput): Promise<ActionR
   return { ok: true, data: { plan: PLAN_LABEL[plan] } };
 }
 
-/** Downgrade: switch the live test subscription to the lower tier's plan, nothing charged today. */
-export async function downgradeTestSubscription(tenantId: string, planInput: string): Promise<ActionResult<{ summary: string }>> {
+/** Downgrade: switch the live test subscription to a lower tier at the typed price, nothing charged today. */
+export async function downgradeTestSubscription(
+  planInput: string,
+  currencyInput: string,
+  amountInput: string,
+): Promise<ActionResult<{ summary: string }>> {
   await requireSuperAdmin();
   const plan = toPlanId(planInput);
   if (!plan) return { ok: false, error: "Unknown plan." };
-  const t = await testTarget(tenantId);
-  if ("error" in t) return { ok: false, error: t.error ?? "Workspace not usable." };
+  const price = toPrice(currencyInput, amountInput);
+  if ("error" in price) return { ok: false, error: price.error };
 
-  const current = await resolvePlan(tenantId);
-  const held = current.status === "ACTIVE" || current.status === "PAST_DUE" ? current.plan : null;
+  const held = await heldPlan();
   if (!held || RANK[plan] >= RANK[held]) {
     return { ok: false, error: "Downgrade needs a paid plan above this one. Subscribe first." };
   }
 
   try {
-    await switchTestSubscriptionPlan(tenantId, plan);
+    await switchTestSubscriptionPlan(TEST_TENANT, plan, price);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
       ok: false,
-      error: `Razorpay refused the plan change: ${msg}. Razorpay only allows changing the plan on a subscription paid by card, so subscribe again with a card if this one was UPI.`,
+      error: `Razorpay refused the plan change: ${msg}. Razorpay only allows a plan change on a subscription paid by card, and in the same currency, so subscribe again with a card if this one was UPI.`,
     };
   }
 
-  const row = await prisma.subscription.findUnique({ where: { tenantId }, select: { renewsAt: true } });
+  const row = await prisma.subscription.findUnique({ where: { tenantId: TEST_TENANT }, select: { renewsAt: true } });
   await sendBillingEmail({
-    tenantId,
+    tenantId: TEST_TENANT,
     kind: "downgraded",
     plan,
     previousPlan: held,
     term: "MONTHLY",
-    recurringAmountText: testAmountText(plan),
+    recurringAmountText: testPriceText(price),
     noChargeToday: true,
     renewsAt: row?.renewsAt ?? null,
   });
   revalidatePath("/admin/test-payments");
   return {
     ok: true,
-    data: { summary: `Now on ${PLAN_LABEL[plan]}. Nothing charged today; ${testAmountText(plan)} from the next renewal.` },
+    data: { summary: `Now on ${PLAN_LABEL[plan]}. Nothing charged today; ${testPriceText(price)} from the next renewal.` },
   };
 }
 
 /**
- * Cancel NOW: Razorpay stops charging, the plan ends, the workspace parks. Both the
- * current id and any replaced-but-not-yet-cancelled one are cancelled, because an
- * abandoned checkout leaves the row pointing at an unpaid subscription while the paid
- * one is the one still charging.
+ * Cancel NOW: Razorpay stops charging and the plan ends. Both the current id and any
+ * replaced-but-not-yet-cancelled one are cancelled, because an abandoned checkout leaves
+ * the row pointing at an unpaid subscription while the paid one is the one still charging.
  */
-export async function cancelTestSubscription(tenantId: string): Promise<ActionResult<{ summary: string }>> {
+export async function cancelTestSubscription(): Promise<ActionResult<{ summary: string }>> {
   await requireSuperAdmin();
-  const t = await testTarget(tenantId);
-  if ("error" in t) return { ok: false, error: t.error ?? "Workspace not usable." };
 
   const sub = await prisma.subscription.findUnique({
-    where: { tenantId },
+    where: { tenantId: TEST_TENANT },
     select: { plan: true, status: true, razorpaySubscriptionId: true, priorRazorpaySubscriptionId: true },
   });
-  if (!sub?.razorpaySubscriptionId) return { ok: false, error: "There is no subscription on this workspace to cancel." };
+  if (!sub?.razorpaySubscriptionId) return { ok: false, error: "There is no test subscription to cancel." };
   if (sub.status === "CANCELED" || sub.status === "HALTED") return { ok: false, error: "This subscription has already ended." };
 
   const ids = [sub.razorpaySubscriptionId, sub.priorRazorpaySubscriptionId].filter((x): x is string => !!x);
@@ -230,15 +251,15 @@ export async function cancelTestSubscription(tenantId: string): Promise<ActionRe
     return { ok: false, error: `Razorpay would not cancel it. Nothing changed. ${failures.join("; ")}` };
   }
 
-  await endSubscription(tenantId, "CANCELED");
+  await endSubscription(TEST_TENANT, "CANCELED");
   await prisma.subscription.update({
-    where: { tenantId },
+    where: { tenantId: TEST_TENANT },
     data: { cancelAtPeriodEnd: false, priorRazorpaySubscriptionId: null, pendingPlan: null, pendingTerm: null },
   });
-  forgetTenantActive(tenantId);
+  forgetTenantActive(TEST_TENANT);
 
   const plan = toPlanId(sub.plan) ?? "GATE";
-  await sendBillingEmail({ tenantId, kind: "cancelled", plan, endsAt: null });
+  await sendBillingEmail({ tenantId: TEST_TENANT, kind: "cancelled", plan, endsAt: null });
   revalidatePath("/admin/test-payments");
-  return { ok: true, data: { summary: `Cancelled. ${PLAN_LABEL[plan]} features are off and nothing more will be charged.` } };
+  return { ok: true, data: { summary: `Cancelled. ${PLAN_LABEL[plan]} has ended and nothing more will be charged.` } };
 }

@@ -83,3 +83,18 @@ export function ownedWhere(owner: string | null | undefined): OwnedWhere {
   if (isBusinessTenant(owner)) return { tenantId: owner };
   return { OR: [{ tenantId: PLATFORM_TENANT_ID }, { tenantId: null }] };
 }
+
+/**
+ * The hidden workspace the super-admin Test payments screen bills (owner, 14-11-2026).
+ *
+ * A paid plan has to sit on SOME workspace for the real activation to run, and the owner
+ * tests platform payments end to end without picking one. So the screen creates this row
+ * on first use, under a fixed id like the platform's own, and the tenant lists leave it
+ * out. It has no login: its billing emails go to the platform owner instead.
+ */
+export const PAYMENT_TEST_TENANT_ID = "platform-test";
+
+/** True for the hidden Test payments workspace. */
+export function isPaymentTestTenant(tenantId: string | null | undefined): boolean {
+  return tenantId === PAYMENT_TEST_TENANT_ID;
+}

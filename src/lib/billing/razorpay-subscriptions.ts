@@ -209,33 +209,67 @@ export const TEST_NOTE = "1";
 /** Each tier at a different amount (owner, 12-11-2026), so a statement line says which
  *  plan charged it: Gate 1.10, Signal 1.20, Agency 1.30, Enterprise 1.40, in paise. */
 export const TEST_AMOUNT_PAISE: Record<PlanId, number> = { GATE: 110, SIGNAL: 120, AGENCY: 130, ENTERPRISE: 140 };
-export const testPlanKey = (plan: PlanId): string => `${plan}_TEST_INR`;
+/** USD defaults (owner, 14-11-2026): 0.50 to 0.80 cents-wise, one per tier. */
+export const TEST_AMOUNT_USD_CENTS: Record<PlanId, number> = { GATE: 50, SIGNAL: 60, AGENCY: 70, ENTERPRISE: 80 };
+
+/**
+ * What a test charge costs: a currency and an amount in its minor unit (paise or cents).
+ * The owner types it on the Test payments screen, so it is validated against these bounds
+ * on the server and never trusted from the browser as-is.
+ */
+export type TestCurrency = "INR" | "USD";
+export interface TestPrice {
+  currency: TestCurrency;
+  minor: number;
+}
+export const TEST_PRICE_BOUNDS: Record<TestCurrency, { min: number; max: number }> = {
+  INR: { min: 100, max: 10000 },
+  USD: { min: 50, max: 500 },
+};
+export function defaultTestPrice(plan: PlanId, currency: TestCurrency = "INR"): TestPrice {
+  return { currency, minor: currency === "USD" ? TEST_AMOUNT_USD_CENTS[plan] : TEST_AMOUNT_PAISE[plan] };
+}
+export function testPriceText(price: TestPrice): string {
+  return `${price.currency} ${(price.minor / 100).toFixed(2)}`;
+}
+/** Kept for the callers that only know the tier: the INR default. */
 export function testAmountText(plan: PlanId): string {
-  return `INR ${(TEST_AMOUNT_PAISE[plan] / 100).toFixed(2)}`;
+  return testPriceText(defaultTestPrice(plan));
 }
 
-export async function getOrCreateTestPlan(plan: PlanId): Promise<string> {
-  const planKey = testPlanKey(plan);
+/**
+ * One Razorpay plan per tier, currency and amount, because a Razorpay plan's price is
+ * fixed. The legacy key `<TIER>_TEST_INR` (the 1.10 to 1.40 rows) still parses below.
+ */
+export const testPlanKey = (plan: PlanId, price: TestPrice): string => `${plan}_TEST_${price.currency}_${price.minor}`;
+const TEST_KEY_RE = /^(GATE|SIGNAL|AGENCY|ENTERPRISE)_TEST_(INR|USD)(?:_(\d+))?$/;
+
+export async function getOrCreateTestPlan(plan: PlanId, price: TestPrice = defaultTestPrice(plan)): Promise<string> {
+  const planKey = testPlanKey(plan, price);
   const cached = await prisma.razorpayPlan.findUnique({ where: { planKey } });
-  const amount = TEST_AMOUNT_PAISE[plan];
-  if (cached && cached.amountCents === amount && cached.currency === "INR") {
+  const amount = price.minor;
+  if (cached && cached.amountCents === amount && cached.currency === price.currency) {
     return cached.razorpayPlanId;
   }
   const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/plans", await platformKeys(), {
     period: "monthly",
     interval: 1,
-    item: { name: `Assess360 ${PLAN_LABEL[plan]} (test)`, amount, currency: "INR" },
+    item: { name: `Assess360 ${PLAN_LABEL[plan]} (test)`, amount, currency: price.currency },
   });
   await prisma.razorpayPlan.upsert({
     where: { planKey },
-    create: { planKey, razorpayPlanId: created.id, amountCents: amount, currency: "INR" },
-    update: { razorpayPlanId: created.id, amountCents: amount, currency: "INR" },
+    create: { planKey, razorpayPlanId: created.id, amountCents: amount, currency: price.currency },
+    update: { razorpayPlanId: created.id, amountCents: amount, currency: price.currency },
   });
   return created.id;
 }
 
-export async function createTestSubscription(tenant: TenantForBilling, plan: PlanId): Promise<CreatedCheckout> {
-  return openSubscription(tenant, plan, "MONTHLY", await getOrCreateTestPlan(plan), { test: TEST_NOTE });
+export async function createTestSubscription(
+  tenant: TenantForBilling,
+  plan: PlanId,
+  price: TestPrice = defaultTestPrice(plan),
+): Promise<CreatedCheckout> {
+  return openSubscription(tenant, plan, "MONTHLY", await getOrCreateTestPlan(plan, price), { test: TEST_NOTE });
 }
 
 async function openSubscription(
@@ -461,6 +495,11 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
         : await prisma.payment
             .count({ where: { notes: { path: ["razorpaySubscriptionId"], equals: subId } } })
             .catch(() => 0);
+    // What a test charge actually cost: the price of the Razorpay plan it ran on, which
+    // the owner typed. Falls back to the tier's INR default for an unknown plan id.
+    const testPrice = input.test
+      ? ((await testPriceForRazorpayPlanId(input.razorpayPlanId).catch(() => null))?.price ?? defaultTestPrice(input.plan))
+      : null;
     const created = seen
       ? false
       : await prisma.payment
@@ -474,13 +513,13 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
           tenantId: input.tenantId,
           status: "captured",
           method: input.method ?? null,
-          currency: input.test ? "INR" : "USD",
+          currency: testPrice ? testPrice.currency : "USD",
           // `amount` is the paise column for INR funnel payments. Subscriptions are
           // billed in USD, so this holds CENTS, which the Accounts page divides by 100
           // with the currency beside it rather than guessing from the number. A test
-          // charge is the tier's test amount in paise.
-          amount: input.test
-            ? TEST_AMOUNT_PAISE[input.plan]
+          // charge is its own price in paise or cents, with its currency beside it.
+          amount: testPrice
+            ? testPrice.minor
             : input.amountUsd != null
               ? Math.round(input.amountUsd * 100)
               : null,
@@ -498,10 +537,10 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
         tenantId: input.tenantId,
         kind: billingChangeKind(previousPlan, input.plan, earlierCharges > 0),
         plan: input.plan,
-        amountText: input.test ? `${testAmountText(input.plan)} (test charge)` : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
+        amountText: testPrice ? `${testPriceText(testPrice)} (test charge)` : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
         previousPlan,
         term: input.term,
-        recurringAmountText: input.test ? testAmountText(input.plan) : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
+        recurringAmountText: testPrice ? testPriceText(testPrice) : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
         paymentId: input.paymentId,
         renewsAt: data.renewsAt,
       });
@@ -702,11 +741,27 @@ export async function clearPaidSlots(tenantId: string): Promise<void> {
  * hand the higher tier straight back on the next charge.
  */
 export async function testPlanForRazorpayPlanId(razorpayPlanId: string | null): Promise<PlanId | null> {
+  return (await testPriceForRazorpayPlanId(razorpayPlanId))?.plan ?? null;
+}
+
+/**
+ * The tier AND the price a TEST Razorpay plan id charges, read from the cached plan row,
+ * or null when it is not a test plan. The ledger and the receipt use this, so they state
+ * what was actually charged rather than the tier's default.
+ */
+export async function testPriceForRazorpayPlanId(
+  razorpayPlanId: string | null | undefined,
+): Promise<{ plan: PlanId; price: TestPrice } | null> {
   if (!razorpayPlanId) return null;
-  const row = await prisma.razorpayPlan.findFirst({ where: { razorpayPlanId }, select: { planKey: true } });
-  const key = row?.planKey ?? "";
-  const tier = key.endsWith("_TEST_INR") ? key.slice(0, -"_TEST_INR".length) : null;
-  return tier && (["GATE", "SIGNAL", "AGENCY", "ENTERPRISE"] as const).includes(tier as PlanId) ? (tier as PlanId) : null;
+  const row = await prisma.razorpayPlan.findFirst({
+    where: { razorpayPlanId },
+    select: { planKey: true, amountCents: true, currency: true },
+  });
+  const m = TEST_KEY_RE.exec(row?.planKey ?? "");
+  if (!row || !m) return null;
+  const plan = m[1] as PlanId;
+  const currency = row.currency === "USD" ? "USD" : "INR";
+  return { plan, price: { currency, minor: row.amountCents } };
 }
 
 /**
@@ -717,13 +772,17 @@ export async function testPlanForRazorpayPlanId(razorpayPlanId: string | null): 
  * Razorpay allows a plan change only on CARD subscriptions; a UPI one is refused and
  * the error is passed back as-is so the screen can say so.
  */
-export async function switchTestSubscriptionPlan(tenantId: string, plan: PlanId): Promise<void> {
+export async function switchTestSubscriptionPlan(
+  tenantId: string,
+  plan: PlanId,
+  price: TestPrice = defaultTestPrice(plan),
+): Promise<void> {
   const sub = await prisma.subscription.findUnique({
     where: { tenantId },
     select: { razorpaySubscriptionId: true },
   });
   if (!sub?.razorpaySubscriptionId) throw new Error("There is no live subscription on this workspace to switch.");
-  const planId = await getOrCreateTestPlan(plan);
+  const planId = await getOrCreateTestPlan(plan, price);
   await razorpayRequest("PATCH", `/subscriptions/${encodeURIComponent(sub.razorpaySubscriptionId)}`, await platformKeys(), {
     plan_id: planId,
     schedule_change_at: "now",

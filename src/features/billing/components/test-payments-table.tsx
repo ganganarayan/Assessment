@@ -49,43 +49,53 @@ function loadRazorpay(): Promise<void> {
 }
 
 export interface TestPaymentsState {
+  /** The plan held now (ACTIVE or PAST_DUE), or null. */
   plan: string | null;
   status: string | null;
-  parked: boolean;
-  trialing: boolean;
   renewsAt: string | null;
-  ownerEmail: string | null;
+  emailTo: string | null;
 }
 
+type Currency = "INR" | "USD";
+
 export function TestPaymentsTable({
-  tenants,
-  selectedId,
   state,
   plans,
+  bounds,
   payments,
 }: {
-  tenants: { id: string; label: string }[];
-  selectedId: string | null;
-  state: TestPaymentsState | null;
-  plans: { id: PlanId; label: string; amountText: string }[];
+  state: TestPaymentsState;
+  plans: { id: PlanId; label: string; defaults: Record<Currency, string> }[];
+  bounds: Record<Currency, { min: number; max: number }>;
   payments: { id: string; when: string; plan: string; amount: string; ref: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [currency, setCurrency] = useState<Record<string, Currency>>(() =>
+    Object.fromEntries(plans.map((p) => [p.id, "INR" as Currency])),
+  );
+  const [amount, setAmount] = useState<Record<string, string>>(() =>
+    Object.fromEntries(plans.map((p) => [p.id, p.defaults.INR])),
+  );
 
-  const live = state && (state.status === "ACTIVE" || state.status === "PAST_DUE") ? (state.plan as PlanId | null) : null;
+  const live = (state.plan as PlanId | null) ?? null;
   const heldRank = live ? RANK[live] : 0;
-  const disabled = pending || busy !== null || !selectedId;
+  const disabled = pending || busy !== null;
+
+  function pickCurrency(planId: PlanId, next: Currency) {
+    const p = plans.find((x) => x.id === planId);
+    setCurrency((c) => ({ ...c, [planId]: next }));
+    if (p) setAmount((a) => ({ ...a, [planId]: p.defaults[next] }));
+  }
 
   async function pay(planId: PlanId) {
-    if (!selectedId) return;
     setMsg(null);
     setBusy(`pay-${planId}`);
     try {
       await loadRazorpay();
-      const res = await startTestCheckout(selectedId, planId);
+      const res = await startTestCheckout(planId, currency[planId] ?? "INR", amount[planId] ?? "");
       if (!res.ok || !res.data) {
         setMsg({ ok: false, text: res.ok ? "Could not start checkout." : res.error });
         setBusy(null);
@@ -97,7 +107,6 @@ export function TestPaymentsTable({
         window.location.href = d.shortUrl;
         return;
       }
-      const tenantId = selectedId;
       const rzp = new Ctor({
         key: d.keyId,
         subscription_id: d.subscriptionId,
@@ -107,10 +116,10 @@ export function TestPaymentsTable({
         theme: { color: "#16a34a" },
         handler: (r: RazorpaySuccess) => {
           start(async () => {
-            const v = await verifyTestPayment({ tenantId, ...r });
+            const v = await verifyTestPayment(r);
             setMsg(
               v.ok
-                ? { ok: true, text: `Paid. The workspace is now on ${v.data?.plan ?? planId}. Receipt emailed to the owner.` }
+                ? { ok: true, text: `Paid ${d.amountText}. The test plan is now ${v.data?.plan ?? planId}. Receipt emailed to you.` }
                 : { ok: false, text: v.error },
             );
             setBusy(null);
@@ -131,11 +140,10 @@ export function TestPaymentsTable({
   }
 
   function downgrade(planId: PlanId) {
-    if (!selectedId) return;
     setMsg(null);
     setBusy(`down-${planId}`);
     start(async () => {
-      const r = await downgradeTestSubscription(selectedId, planId);
+      const r = await downgradeTestSubscription(planId, currency[planId] ?? "INR", amount[planId] ?? "");
       setMsg(r.ok ? { ok: true, text: r.data?.summary ?? "Downgraded." } : { ok: false, text: r.error });
       setBusy(null);
       router.refresh();
@@ -143,12 +151,11 @@ export function TestPaymentsTable({
   }
 
   function cancel() {
-    if (!selectedId) return;
-    if (!window.confirm("Cancel now? The plan ends immediately, features switch off and Razorpay stops charging. This cannot be undone.")) return;
+    if (!window.confirm("Cancel now? The test plan ends immediately and Razorpay stops charging. This cannot be undone.")) return;
     setMsg(null);
     setBusy("cancel");
     start(async () => {
-      const r = await cancelTestSubscription(selectedId);
+      const r = await cancelTestSubscription();
       setMsg(r.ok ? { ok: true, text: r.data?.summary ?? "Cancelled." } : { ok: false, text: r.error });
       setBusy(null);
       router.refresh();
@@ -157,32 +164,12 @@ export function TestPaymentsTable({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Workspace</span>
-        <select
-          className="h-10 rounded-md border bg-[var(--background)] px-3"
-          value={selectedId ?? ""}
-          onChange={(e) => router.push(e.target.value ? `/admin/test-payments?t=${encodeURIComponent(e.target.value)}` : "/admin/test-payments")}
-        >
-          <option value="">Pick a workspace</option>
-          {tenants.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {state ? (
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Now: <strong className="text-[var(--foreground)]">{state.plan ?? "no plan"}</strong>
-          {state.status ? ` (${state.status})` : ""}
-          {state.trialing ? ", on trial" : ""}
-          {state.parked ? ", parked" : ""}
-          {state.renewsAt ? `. Renews ${state.renewsAt}` : ""}
-          {`. Emails go to ${state.ownerEmail ?? "nobody (no owner login)"}.`}
-        </p>
-      ) : null}
+      <p className="text-sm text-[var(--muted-foreground)]">
+        Now: <strong className="text-[var(--foreground)]">{live ? live : "no plan"}</strong>
+        {state.status ? ` (${state.status})` : ""}
+        {state.renewsAt && live ? `. Renews ${state.renewsAt}` : ""}
+        {`. Emails go to ${state.emailTo ?? "you"}.`}
+      </p>
 
       {msg ? <p className={`text-sm ${msg.ok ? "text-green-600" : "text-red-500"}`}>{msg.text}</p> : null}
 
@@ -190,21 +177,46 @@ export function TestPaymentsTable({
         {plans.map((p) => {
           const rank = RANK[p.id];
           const isLive = live === p.id;
+          const cur = currency[p.id] ?? "INR";
+          const amt = amount[p.id] ?? "";
+          const priceText = `${cur} ${amt || "0"}`;
           return (
             <Card key={p.id} className={isLive ? "border-green-600" : undefined}>
-              <CardContent className="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between">
-                <div className="min-w-32">
-                  <p className="font-semibold">
+              <CardContent className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                  <p className="min-w-28 font-semibold">
                     {p.label} {isLive ? <span className="text-xs text-green-600">current</span> : null}
                   </p>
-                  <p className="text-xs text-[var(--muted-foreground)]">{p.amountText} a month</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      aria-label={`${p.label} currency`}
+                      className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm"
+                      value={cur}
+                      disabled={disabled}
+                      onChange={(e) => pickCurrency(p.id, e.target.value === "USD" ? "USD" : "INR")}
+                    >
+                      <option value="INR">INR</option>
+                      <option value="USD">USD</option>
+                    </select>
+                    <input
+                      aria-label={`${p.label} amount`}
+                      className="h-9 w-24 rounded-md border bg-[var(--background)] px-2 text-sm"
+                      inputMode="decimal"
+                      value={amt}
+                      disabled={disabled}
+                      onChange={(e) => setAmount((a) => ({ ...a, [p.id]: e.target.value }))}
+                    />
+                    <span className="text-xs text-[var(--muted-foreground)]">
+                      a month ({bounds[cur].min.toFixed(2)} to {bounds[cur].max.toFixed(2)})
+                    </span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 md:flex">
                   <Button size="sm" disabled={disabled || live !== null} onClick={() => pay(p.id)}>
-                    {busy === `pay-${p.id}` && live === null ? "Opening..." : `Subscribe ${p.amountText}`}
+                    {busy === `pay-${p.id}` && live === null ? "Opening..." : `Subscribe ${priceText}`}
                   </Button>
                   <Button size="sm" disabled={disabled || live === null || rank <= heldRank} onClick={() => pay(p.id)}>
-                    {busy === `pay-${p.id}` && live !== null ? "Opening..." : `Upgrade ${p.amountText}`}
+                    {busy === `pay-${p.id}` && live !== null ? "Opening..." : `Upgrade ${priceText}`}
                   </Button>
                   <Button
                     size="sm"
@@ -226,7 +238,7 @@ export function TestPaymentsTable({
 
       {payments.length ? (
         <div className="flex flex-col gap-1 text-sm">
-          <p className="font-medium">Last charges on this workspace</p>
+          <p className="font-medium">Last test charges</p>
           {payments.map((r) => (
             <p key={r.id} className="text-[var(--muted-foreground)]">
               {r.when} · {r.plan} · {r.amount} · {r.ref}

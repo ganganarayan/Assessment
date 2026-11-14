@@ -56,7 +56,7 @@ async function softFail(
   }
 }
 import { isPlatformOwner } from "@/lib/auth/platform";
-import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
+import { PAYMENT_TEST_TENANT_ID, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
 import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
 import { provisionWorkspace } from "@/lib/tenant/provision";
@@ -708,7 +708,8 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
     const rows = await prisma.tenant.findMany({
       // Active only. Soft-deleted tenants live in listDeletedTenants, so the everyday
       // list never offers an action against a tenant that is supposed to be gone.
-      where: { deletedAt: null },
+      // The hidden Test payments workspace is not a customer and is never listed.
+      where: { deletedAt: null, id: { not: PAYMENT_TEST_TENANT_ID } },
       orderBy: { createdAt: "desc" },
       include: TENANT_INCLUDE,
     });
