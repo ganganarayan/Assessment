@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
+import { currentMcpActor } from "@/lib/auth/mcp-actor";
 
 /**
  * The impersonation cookie, read and written in ONE place.
@@ -23,6 +24,10 @@ import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 
 /** The tenant this user has entered, or null. Ignores a cookie set by anyone else. */
 export async function readActingTenant(userId: string): Promise<string | null> {
+  // An MCP tool call carries the workspace it targets instead of a cookie. Same binding
+  // rule as the cookie: it only answers for the login the call is acting as.
+  const actor = currentMcpActor();
+  if (actor) return actor.user.id === userId ? actor.actingTenantId : null;
   const raw = (await cookies()).get(ACTING_TENANT_COOKIE)?.value;
   if (!raw) return null;
   const dot = raw.indexOf(".");
@@ -32,6 +37,8 @@ export async function readActingTenant(userId: string): Promise<string | null> {
 
 /** Enter a tenant: bind the cookie to the super admin who entered it. */
 export async function writeActingTenant(userId: string, tenantId: string): Promise<void> {
+  // An MCP call picks its workspace per call; it never writes a browser cookie.
+  if (currentMcpActor()) return;
   (await cookies()).set(ACTING_TENANT_COOKIE, `${userId}.${tenantId}`, {
     httpOnly: true,
     sameSite: "lax",
@@ -41,5 +48,6 @@ export async function writeActingTenant(userId: string, tenantId: string): Promi
 
 /** Leave impersonation. Safe to call for anyone, signed in or not. */
 export async function clearActingTenant(): Promise<void> {
+  if (currentMcpActor()) return;
   (await cookies()).delete(ACTING_TENANT_COOKIE);
 }

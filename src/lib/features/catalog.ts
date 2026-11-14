@@ -41,6 +41,7 @@ export const FEATURE_RELEASE_KEYS = [
   "gateResult",
   "lifecycle",
   "testPayment",
+  "mcp",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -189,6 +190,19 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     // funnel: it is ledgered as connection_test and the webhook returns before CAPI.
     defaultReleased: false,
     // No route of its own: it is one row inside each Razorpay card in Settings.
+    routes: [],
+  },
+  {
+    key: "mcp",
+    label: "Claude connection (MCP)",
+    blurb:
+      "Lets a paid workspace mint one MCP key and operate the app by chat from Claude: stats, leads, funnels, templates and every builder action.",
+    whileHeld:
+      "The MCP key options are hidden on API tokens, minting one is refused, and existing MCP keys stop authenticating. Other API keys and the app itself are untouched.",
+    // Held back because a key that can run the builder is a bigger hand-off than a read
+    // key. The owner and internal workspaces are exempt, so it can be proven first.
+    defaultReleased: false,
+    // No route of its own: it lives on the API tokens page beside the other keys.
     routes: [],
   },
 ];

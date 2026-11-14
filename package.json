@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "mcp:actions": "tsx scripts/gen-mcp-actions.ts",
+    "test:mcp": "tsx --conditions=react-server --test tests/mcp/*.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

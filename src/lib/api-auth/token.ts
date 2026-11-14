@@ -10,7 +10,7 @@ import { generateId } from "@/lib/ids";
  * admin list so a token can be recognised without revealing it.
  */
 
-const SCOPE_PREFIX: Record<string, string> = { meta_match: "mm" };
+const SCOPE_PREFIX: Record<string, string> = { meta_match: "mm", mcp_read: "mcp", mcp_write: "mcp" };
 
 function scopePrefix(scope: string): string {
   return SCOPE_PREFIX[scope] ?? "at";

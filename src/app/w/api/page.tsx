@@ -12,16 +12,23 @@ import {
 import { env } from "@/lib/env";
 import { listApiTokens } from "@/features/api-tokens/actions";
 import { ApiTokensManager } from "@/features/api-tokens/components/api-tokens-manager";
+import { MCP_TOKEN_SCOPES } from "@/features/api-tokens/scopes";
+import { mcpWorkspaceEligibility } from "@/mcp/core/eligibility";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceApiTokensPage() {
-  const { tenantId, impersonating } = await requireWorkspace();
+  const { tenantId, impersonating, viaAgency } = await requireWorkspace();
 
   // Guarded on the ROUTE, not just hidden in the nav. A bearer key that reads a
   // workspace's leads is exactly the thing that must not be reachable by typing the
   // URL. A super admin operating the workspace is never gated.
-  if (!impersonating && !(await tenantCan(tenantId, "apiAccess"))) {
+  const dataKeys = impersonating || (await tenantCan(tenantId, "apiAccess"));
+  // The Claude (MCP) key: every paid plan, one per workspace, never inside a client
+  // workspace (its agency's key reaches it). The owner's own MCP key is minted on /admin.
+  const mcpKeys = !impersonating && !viaAgency && (await mcpWorkspaceEligibility(tenantId)).ok;
+  const allowedScopes = [...(dataKeys ? ["meta_match"] : []), ...(mcpKeys ? MCP_TOKEN_SCOPES : [])];
+  if (allowedScopes.length === 0) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
@@ -68,7 +75,7 @@ export default async function WorkspaceApiTokensPage() {
       <ApiTokensManager
         initialTokens={tokens}
         endpointBase={env.NEXT_PUBLIC_APP_URL}
-        allowedScopes={["meta_match"]}
+        allowedScopes={allowedScopes}
       />
     </div>
   );

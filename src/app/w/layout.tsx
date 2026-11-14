@@ -28,6 +28,7 @@ import { resolveSupportRouting } from "@/lib/support/config";
 import { allowedFeaturesFor } from "@/lib/features/release";
 import { routesHeldBack } from "@/lib/features/catalog";
 import { tenantUnreadCounts } from "@/features/support/data";
+import { mcpWorkspaceEligibility } from "@/mcp/core/eligibility";
 
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
@@ -53,7 +54,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   // Hide what this plan cannot reach. The ROUTES are guarded independently - a hidden
   // link is presentation, never a permission - but offering a page that only says "not
   // on your plan" is a worse way to sell an upgrade than the billing page is.
-  const hiddenNav = impersonating || resolved.limits.features.apiAccess ? [] : ["/w/api"];
+  // API tokens also hosts the Claude (MCP) key, which every paid plan may hold.
+  const apiPage = impersonating || resolved.limits.features.apiAccess || (!viaAgency && (await mcpWorkspaceEligibility(tenantId)).ok);
+  const hiddenNav = apiPage ? [] : ["/w/api"];
   // Client workspaces: hidden unless this plan includes any. An agency tenant resolves
   // 0 (depth is one), so the link disappears inside a client workspace without a second
   // rule. A super admin who has entered a workspace sees it only when that workspace's

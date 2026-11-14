@@ -77,7 +77,7 @@ export function ApiTokensManager({
             <div key={s.value} className="flex flex-col gap-1">
               <p className="text-xs font-medium">{ep.title} <span className="font-mono text-[var(--muted-foreground)]">({s.value})</span></p>
               <div className="flex items-center gap-2">
-                <span className="w-16 shrink-0 text-[var(--muted-foreground)]">Lookup</span>
+                <span className="w-16 shrink-0 text-[var(--muted-foreground)]">{ep.lookupLabel ?? "Lookup"}</span>
                 <code className="min-w-0 flex-1 truncate rounded bg-[var(--muted)] px-2 py-1 text-xs">{lookupUrl}</code>
                 <Button size="sm" variant="outline" onClick={() => copy(lookupUrl)}>Copy</Button>
               </div>
@@ -93,6 +93,12 @@ export function ApiTokensManager({
           Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. A key only works for
           its own scope. <span className="font-mono">meta_match</span> returns raw marketing match
           fields (hash in n8n before Meta)
+          {scopes.some((s) => s.value === "mcp_read" || s.value === "mcp_write") ? (
+            <>
+              ; the <span className="font-mono">mcp</span> keys connect Claude to this workspace (one MCP key per
+              workspace; revoke it to mint a new one)
+            </>
+          ) : null}
           {scopes.some((s) => s.value === "gita_mentor") ? (
             <>
               ; <span className="font-mono">gita_mentor</span> returns the assessment result snapshot

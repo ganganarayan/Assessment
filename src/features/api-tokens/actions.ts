@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, configTenantOf, scopeOwnerDenied } from "@/lib/tenant/acting";
-import { ownedWhere } from "@/lib/tenant/platform-tenant";
+import { ownedWhere, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { generateApiToken } from "@/lib/api-auth/token";
 import { type ActionResult } from "@/features/assessment/actions/shared";
-import { isApiTokenScope, type ApiTokenRow } from "@/features/api-tokens/scopes";
+import { isApiTokenScope, isMcpTokenScope, MCP_TOKEN_SCOPES, type ApiTokenRow } from "@/features/api-tokens/scopes";
+import { mcpWorkspaceEligibility } from "@/mcp/core/eligibility";
 
 /**
  * The caller's own tokens. The scope is resolved HERE, never taken as an argument:
@@ -58,17 +59,56 @@ export async function mintApiToken(scope: string, label: string): Promise<Action
   const denied = scopeOwnerDenied(acting);
   if (denied) return denied;
   if (!acting.isSuper && !acting.tenantId) return { ok: false, error: "No workspace." };
+  if (!isApiTokenScope(scope)) return { ok: false, error: "Unknown scope." };
+  if (isMcpTokenScope(scope)) return mintMcpToken(acting, scope, label);
   // Billing gate: API access is an Agency capability. The app owner (super admin) is
   // never limited; a tenant needs the apiAccess feature to mint keys.
   if (!acting.isSuper && !(await tenantCan(acting.tenantId, "apiAccess"))) {
     return { ok: false, error: "API access is part of Agency. Upgrade your plan to mint API keys." };
   }
-  if (!isApiTokenScope(scope)) return { ok: false, error: "Unknown scope." };
   const { plaintext, tokenHash, prefix } = generateApiToken(scope);
   // Stamp the acting tenant. Endpoints (meta-match, mentor) already filter their
   // data by the token's tenantId, so a tenant's token only ever sees its own leads.
   await prisma.apiToken.create({
     data: { tokenHash, prefix, scope, label: label.trim() || null, createdById: acting.user.id, tenantId: acting.tenantId },
+  });
+  revalidatePath("/admin/api-tokens");
+  revalidatePath("/w/api");
+  return { ok: true, data: { token: plaintext } };
+}
+
+/**
+ * Mint the workspace's MCP key (Claude connection).
+ *
+ * Different from the data keys above, by the owner's rules (14-11-2026):
+ *  - every PAID plan may hold one (mcpWorkspaceEligibility), not only Agency
+ *  - ONE active MCP key per workspace; an agency's one key also reaches its clients, so a
+ *    client workspace never mints its own
+ *  - the owner's key is always stamped on the Platform workspace, whatever workspace they
+ *    happen to be inside, because it reaches every workspace anyway
+ * The key acts as the login that minted it (createdById), which is always an owner login.
+ */
+async function mintMcpToken(
+  acting: Awaited<ReturnType<typeof resolveActingScope>>,
+  scope: string,
+  label: string,
+): Promise<ActionResult<{ token: string }>> {
+  const tenantId = acting.isSuper ? PLATFORM_TENANT_ID : configTenantOf(acting);
+  if (!acting.isSuper) {
+    if (acting.viaAgency) return { ok: false, error: "A client workspace is reached through its agency's MCP key. Mint it in the agency's own workspace." };
+    const allowed = await mcpWorkspaceEligibility(tenantId);
+    if (!allowed.ok) return { ok: false, error: allowed.reason };
+  }
+  const existing = await prisma.apiToken.findFirst({
+    where: { tenantId, scope: { in: [...MCP_TOKEN_SCOPES] }, revokedAt: null },
+    select: { prefix: true },
+  });
+  if (existing) {
+    return { ok: false, error: `This workspace already has an MCP key (${existing.prefix}). Revoke it first, then mint a new one.` };
+  }
+  const { plaintext, tokenHash, prefix } = generateApiToken(scope);
+  await prisma.apiToken.create({
+    data: { tokenHash, prefix, scope, label: label.trim() || null, createdById: acting.user.id, tenantId },
   });
   revalidatePath("/admin/api-tokens");
   revalidatePath("/w/api");
