@@ -59,6 +59,7 @@ DD-MM-YYYY HH:MM IST. Secrets in action results are replaced with [redacted].
 | Static scans (no all-tenant reads, every query scoped, catalog fresh, no excluded action offered) | 🟢 6 of 6 pass |
 | Isolation, on staging with fixture workspaces | 🟢 13 of 13 pass, 0 fixture rows left |
 | Typecheck, eslint (0 errors), client bundle, all 28 build verify scripts | 🟢 pass |
+| Live on staging (77759e7), throwaway workspace | 🟢 initialize, 15 tools listed, every read tool, a real server action through the bridge, a real write (template import) previewed, confirmed, created as DRAFT and audited; another workspace refused; 0 rows left |
 
 The isolation suite proves: workspace A cannot list, open or count workspace B's funnels,
 leads, stats or private templates, by id or by workspace_id; ad-filtered stats do not count

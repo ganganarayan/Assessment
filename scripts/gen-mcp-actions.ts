@@ -78,7 +78,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function isUseServer(file: string): boolean {
-  const head = fs.readFileSync(file, "utf8").replace(/^﻿/, "").trimStart();
+  const head = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "").trimStart();
   return head.startsWith('"use server"') || head.startsWith("'use server'");
 }
 
@@ -195,7 +195,8 @@ ${loaders}
 `;
 
 if (process.argv.includes("--check")) {
-  const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8") : "";
+  // Line endings normalised: git checks this file out with CRLF on Windows (autocrlf).
+  const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8").replace(/\r\n/g, "\n") : "";
   if (current !== body) {
     console.error("src/mcp/actions/catalog.generated.ts is stale. Run: npm run mcp:actions");
     process.exit(1);
