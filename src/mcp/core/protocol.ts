@@ -2,6 +2,7 @@ import "server-only";
 import { authenticateMcp } from "@/mcp/core/auth";
 import { callTool, listTools } from "@/mcp/core/registry";
 import type { McpIdentity } from "@/mcp/core/types";
+import { CORS_HEADERS, originOf, resourceMetadataUrl } from "@/mcp/oauth/core";
 
 /**
  * MCP over Streamable HTTP, stateless, JSON responses (no SSE, no session ids).
@@ -81,14 +82,16 @@ async function handleOne(identity: McpIdentity, msg: unknown, serverVersion: str
 function json(body: unknown, status = 200, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json", "cache-control": "no-store", ...extra },
+    headers: { "content-type": "application/json", "cache-control": "no-store", ...CORS_HEADERS, ...extra },
   });
 }
 
 export async function handleMcpPost(req: Request, serverVersion: string): Promise<Response> {
   const auth = await authenticateMcp(req);
   if (!auth.ok) {
-    return json(err(null, -32001, auth.error), auth.status, auth.status === 401 ? { "www-authenticate": 'Bearer realm="assess360-mcp"' } : {});
+    // The 401 points Claude at the sign-in (step 2 of connecting), per RFC 9728.
+    const challenge = `Bearer realm="assess360-mcp", resource_metadata="${resourceMetadataUrl(originOf(req))}"`;
+    return json(err(null, -32001, auth.error), auth.status, auth.status === 401 ? { "www-authenticate": challenge } : {});
   }
 
   let body: unknown;

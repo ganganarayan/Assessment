@@ -86,58 +86,53 @@ MCP_DB_TEST=1 railway run -- npx tsx --conditions=react-server --test tests/mcp/
 - When the app changes, run npm run mcp:actions so new actions reach the bridge. The test
   suite fails if you forget.
 
-## 6. Connect Claude (staging)
+## 6. Connect Claude (two steps, no key in any command)
 
-**Get a key**
+The server signs in with standard MCP OAuth. Step 1 adds it by URL only. Step 2 opens an
+Assess360 "Connect Claude" page in the browser, you paste the MCP key there, and Claude stores
+it itself. Revoking the key under API tokens ends the connection at once.
 
-1. Sign in at https://orbitq-assess.applygitawisdom.com as the owner.
-2. In the left menu, click **API Tokens**.
+Use https://orbitq-assess.applygitawisdom.com for staging and https://assess360.divineleads.guru
+for production (or a workspace's own custom domain).
+
+**Before you start: make the key**
+
+1. Sign in to Assess360.
+2. In the left menu, click **API Tokens** (in a workspace: **API tokens**).
 3. In **Scope**, pick **Claude (MCP), read and write**.
-4. In **Label**, type **Claude**.
-5. Click **Generate**.
-6. Copy the key that starts with **mcp_**. It is shown once.
+4. Click **Generate** and keep the page open. The key starts with **mcp_** and is shown once.
 
-**Claude Code (this app, or a terminal)**
+**Claude Code**
 
-7. Run this, with your key in place of mcp_YOUR_KEY:
+Step 1. Run:
 
 ```bash
-claude mcp add --transport http assess360 https://orbitq-assess.applygitawisdom.com/api/mcp --header "Authorization: Bearer mcp_YOUR_KEY"
+claude mcp add --transport http assess360 https://assess360.divineleads.guru/api/mcp
 ```
 
-8. Start a new session. Type **/mcp** and check that **assess360** shows as connected.
-9. Ask: "Run connection_status on assess360."
+Step 2. In a Claude Code session type **/mcp**, pick **assess360**, choose **Authenticate**. The
+browser opens **Connect Claude to Assess360**. Paste the key in **Your MCP key** and click
+**Connect**. Back in Claude Code, assess360 shows as connected.
 
-**Claude Desktop (chat app)**
+**claude.ai or Claude Desktop**
 
-7. Open Settings, then Developer, then **Edit Config**.
-8. Add this inside the file, with your key in place of mcp_YOUR_KEY, and save:
+Step 1. Open **Settings**, then **Connectors**, then **Add custom connector**. Name:
+**Assess360**. URL: **https://assess360.divineleads.guru/api/mcp**. Click **Add**.
 
-```json
-{
-  "mcpServers": {
-    "assess360": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://orbitq-assess.applygitawisdom.com/api/mcp", "--header", "Authorization:${AUTH}"],
-      "env": { "AUTH": "Bearer mcp_YOUR_KEY" }
-    }
-  }
-}
-```
-
-9. Quit Claude Desktop fully and reopen it. assess360 appears under the tools icon.
+Step 2. Click **Connect** on the new connector. The Connect Claude page opens. Paste the key in
+**Your MCP key** and click **Connect**.
 
 **Check a key without Claude**
 
 ```bash
-curl -H "Authorization: Bearer mcp_YOUR_KEY" https://orbitq-assess.applygitawisdom.com/api/mcp/health
+curl -H "Authorization: Bearer mcp_YOUR_KEY" https://assess360.divineleads.guru/api/mcp/health
 ```
 
 **Give a customer access (when you are ready)**
 
 1. Go to **Feature releases** in the left menu.
 2. Turn on **Claude connection (MCP)**.
-3. The workspace owner opens **API tokens** in their workspace and follows steps 3 to 6 above.
+3. The workspace owner makes their key under **API tokens** and follows the two steps above.
 
 ## 7. Things to try first
 

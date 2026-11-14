@@ -1,4 +1,5 @@
 import { handleMcpPost } from "@/mcp/core/protocol";
+import { CORS_HEADERS } from "@/mcp/oauth/core";
 
 /**
  * The MCP endpoint: Streamable HTTP, stateless. POST /api/mcp with
@@ -18,6 +19,11 @@ export async function POST(req: Request) {
 /** No server-initiated stream: this server answers every request inline. */
 export async function GET() {
   return new Response(null, { status: 405, headers: { allow: "POST" } });
+}
+
+/** Browser-based clients (claude.ai) preflight the endpoint. */
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function DELETE() {

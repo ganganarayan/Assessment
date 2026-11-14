@@ -15,6 +15,17 @@ const nextConfig: NextConfig = {
     // react-pdf pulls in fontkit/yoga (native-ish); keep it out of the webpack bundle.
     "@react-pdf/renderer",
   ],
+  // OAuth discovery for the Claude connection (MCP). Clients look these documents up at
+  // fixed /.well-known paths, both bare and suffixed with the resource path.
+  async rewrites() {
+    return [
+      { source: "/.well-known/oauth-protected-resource", destination: "/api/mcp/oauth/resource-metadata" },
+      { source: "/.well-known/oauth-protected-resource/:path*", destination: "/api/mcp/oauth/resource-metadata" },
+      { source: "/.well-known/oauth-authorization-server", destination: "/api/mcp/oauth/server-metadata" },
+      { source: "/.well-known/oauth-authorization-server/:path*", destination: "/api/mcp/oauth/server-metadata" },
+      { source: "/.well-known/openid-configuration", destination: "/api/mcp/oauth/server-metadata" },
+    ];
+  },
   experimental: {
     serverActions: {
       // Allow custom tenant domains to invoke Server Actions.
