@@ -48,6 +48,9 @@ export const SCOPE_ENDPOINTS: Record<ApiTokenScope, { title: string; lookup: str
 /** The MCP scopes. A workspace holds at most ONE active key across both. */
 export const MCP_TOKEN_SCOPES: readonly ApiTokenScope[] = ["mcp_read", "mcp_write"];
 
+/** The only MCP scope a workspace may mint: setup always writes. Read-only is the owner's. */
+export const WORKSPACE_MCP_SCOPE: ApiTokenScope = "mcp_write";
+
 export function isMcpTokenScope(s: string): boolean {
   return (MCP_TOKEN_SCOPES as readonly string[]).includes(s);
 }

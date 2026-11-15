@@ -7,7 +7,7 @@ import { ownedWhere, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { generateApiToken } from "@/lib/api-auth/token";
 import { type ActionResult } from "@/features/assessment/actions/shared";
-import { isApiTokenScope, isMcpTokenScope, MCP_TOKEN_SCOPES, type ApiTokenRow } from "@/features/api-tokens/scopes";
+import { isApiTokenScope, isMcpTokenScope, MCP_TOKEN_SCOPES, WORKSPACE_MCP_SCOPE, type ApiTokenRow } from "@/features/api-tokens/scopes";
 import { mcpWorkspaceEligibility } from "@/mcp/core/eligibility";
 
 /**
@@ -95,6 +95,7 @@ async function mintMcpToken(
 ): Promise<ActionResult<{ token: string }>> {
   const tenantId = acting.isSuper ? PLATFORM_TENANT_ID : configTenantOf(acting);
   if (!acting.isSuper) {
+    if (scope !== WORKSPACE_MCP_SCOPE) return { ok: false, error: "A workspace's Claude key is always read and write. Pick \"Claude (MCP), read and write\"." };
     if (acting.viaAgency) return { ok: false, error: "A client workspace is reached through its agency's MCP key. Mint it in the agency's own workspace." };
     const allowed = await mcpWorkspaceEligibility(tenantId);
     if (!allowed.ok) return { ok: false, error: allowed.reason };

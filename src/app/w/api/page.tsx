@@ -12,7 +12,7 @@ import {
 import { env } from "@/lib/env";
 import { listApiTokens } from "@/features/api-tokens/actions";
 import { ApiTokensManager } from "@/features/api-tokens/components/api-tokens-manager";
-import { MCP_TOKEN_SCOPES } from "@/features/api-tokens/scopes";
+import { WORKSPACE_MCP_SCOPE } from "@/features/api-tokens/scopes";
 import { mcpWorkspaceEligibility } from "@/mcp/core/eligibility";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,10 @@ export default async function WorkspaceApiTokensPage() {
   // The Claude (MCP) key: every paid plan, one per workspace, never inside a client
   // workspace (its agency's key reaches it). The owner's own MCP key is minted on /admin.
   const mcpKeys = !impersonating && !viaAgency && (await mcpWorkspaceEligibility(tenantId)).ok;
-  const allowedScopes = [...(dataKeys ? ["meta_match"] : []), ...(mcpKeys ? MCP_TOKEN_SCOPES : [])];
+  // A workspace's Claude key is always read and write: any setup Claude does for a
+  // customer writes, so a read-only key only ever led to a refusal. (Owner decision
+  // 15-11-2026.) The read-only scope stays on /admin for the owner's own key.
+  const allowedScopes = [...(dataKeys ? ["meta_match"] : []), ...(mcpKeys ? [WORKSPACE_MCP_SCOPE] : [])];
   if (allowedScopes.length === 0) {
     return (
       <div className="flex flex-col gap-6">

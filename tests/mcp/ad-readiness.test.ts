@@ -17,7 +17,7 @@ const ready: ReadinessInput = {
     { minScore: 76, maxScore: 100 },
   ],
   resultPage: { bound: true, published: true },
-  meta: { usesMeta: true, accountProblem: null, hasTestEventCode: true },
+  meta: { usesMeta: true, workspaceUsesMeta: true, accountProblem: null, hasTestEventCode: true },
   runs: { capiAccepted: true, pixelReached: true, idsMatch: true, turnedAway: 1, waitlisted: 1, passedAndLeft: 1, completed: 1 },
 };
 
@@ -53,7 +53,13 @@ test("readiness: no waitlist answer means no waitlist run is asked for", () => {
 test("readiness: Meta proof blocks only when the funnel uses Meta", () => {
   const noProof = { ...ready.runs, capiAccepted: false, pixelReached: false, idsMatch: false };
   assert.equal(evaluateAdReadiness({ ...ready, runs: noProof }).ready, false);
-  assert.equal(evaluateAdReadiness({ ...ready, runs: noProof, meta: { usesMeta: false, accountProblem: null, hasTestEventCode: false } }).ready, true);
+  assert.equal(evaluateAdReadiness({ ...ready, runs: noProof, meta: { usesMeta: false, workspaceUsesMeta: false, accountProblem: null, hasTestEventCode: false } }).ready, true);
+});
+
+test("readiness: a Meta workspace with Meta switched off on the funnel is NOT ready", () => {
+  const r = evaluateAdReadiness({ ...ready, meta: { usesMeta: false, workspaceUsesMeta: true, accountProblem: null, hasTestEventCode: true } });
+  assert.equal(r.ready, false);
+  assert.match(r.lines.find((l) => l.key === "meta")!.detail, /OFF on this funnel/);
 });
 
 test("readiness: advisory lines never block", () => {

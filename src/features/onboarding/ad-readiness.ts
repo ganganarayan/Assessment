@@ -31,6 +31,8 @@ export interface ReadinessInput {
   meta: {
     /** False when this funnel does not report to Meta at all. */
     usesMeta: boolean;
+    /** The workspace runs Meta ads (it has not ticked "we don't use Meta"). */
+    workspaceUsesMeta: boolean;
     /** Why publishing is refused for Meta reasons, or null when the account is complete. */
     accountProblem: string | null;
     hasTestEventCode: boolean;
@@ -162,7 +164,15 @@ export function evaluateAdReadiness(x: ReadinessInput): { ready: boolean; lines:
 
   // --- Meta -------------------------------------------------------------------------
   if (!x.meta.usesMeta) {
-    add("meta", "Pixel and Conversions API", true, true, "This funnel does not report to Meta.");
+    add(
+      "meta",
+      "Funnel reports to Meta",
+      !x.meta.workspaceUsesMeta,
+      true,
+      x.meta.workspaceUsesMeta
+        ? "Meta reporting is OFF on this funnel (a template arrives with it off), so your ads would learn nothing from it. Switch it on (assessment.meta-reporting.setMetaReporting)."
+        : "This workspace does not use Meta, so nothing is reported.",
+    );
   } else {
     add("meta", "Pixel and Conversions API", x.meta.accountProblem === null, true, x.meta.accountProblem ?? "Pixel id and Conversions API token saved.");
     add(
@@ -208,7 +218,9 @@ export function evaluateAdReadiness(x: ReadinessInput): { ready: boolean; lines:
   if (x.gate.active && x.gate.waitlistOptions > 0) {
     add("run_waitlisted", "Test run: waitlisted", r.waitlisted > 0, true, r.waitlisted > 0 ? `${r.waitlisted} test run(s).` : "Not tested yet.");
   }
-  if (x.gate.active) {
+  // A gate pass is only recorded while the funnel reports to Meta, so without Meta this
+  // path cannot be proven from the rows and is not asked for.
+  if (x.gate.active && x.meta.usesMeta) {
     add(
       "run_abandoned",
       "Test run: passed the gate, then left",

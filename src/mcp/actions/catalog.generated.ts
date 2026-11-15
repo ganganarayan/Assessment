@@ -3289,6 +3289,28 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Save the landing screen copy. Only the fields passed change; pass \"\" to clear one. Fields: headline, eyebrow, subheadline, intro, notice, startButtonLabel, coverImageUrl, estimatedMinutes."
   },
   {
+    "id": "assessment.meta-reporting.setMetaReporting",
+    "module": "@/features/assessment/actions/meta-reporting",
+    "fn": "setMetaReporting",
+    "file": "src/features/assessment/actions/meta-reporting.ts",
+    "kind": "write",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      },
+      {
+        "name": "on",
+        "type": "boolean",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<{ fireMetaCapi: boolean; }>>",
+    "doc": "Switch this funnel's Meta reporting on or off (the pixel and Conversions API events: gate passed, turned away, registration, completion). A template arrives with it OFF on purpose, so an imported funnel reports nothing to Meta until this is switched on. Turn it on before testing a funnel that will run Meta ads; the ad account it reports to must hold a pixel id and CAPI token before publishing. Only this one switch changes."
+  },
+  {
     "id": "assessment.pages.addBlock",
     "module": "@/features/assessment/actions/pages",
     "fn": "addBlock",
@@ -8917,6 +8939,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/assessment/actions/category-band": () => import("@/features/assessment/actions/category-band") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/import-text": () => import("@/features/assessment/actions/import-text") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/landing": () => import("@/features/assessment/actions/landing") as Promise<Record<string, unknown>>,
+  "@/features/assessment/actions/meta-reporting": () => import("@/features/assessment/actions/meta-reporting") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/pages": () => import("@/features/assessment/actions/pages") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/qualification": () => import("@/features/assessment/actions/qualification") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/question": () => import("@/features/assessment/actions/question") as Promise<Record<string, unknown>>,

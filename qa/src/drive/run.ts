@@ -95,6 +95,9 @@ export interface DriveOptions {
   /** Keep a trace for this case (written by the caller). */
   trace: boolean;
   runId: string;
+  /** Open this URL instead of the live link, e.g. a signed test link that redirects
+   *  into the preview. Unset: the funnel's public /a/<slug>. */
+  entryUrl?: string;
 }
 
 export async function openBrowser(opts: DriveOptions): Promise<Browser> {
@@ -215,7 +218,7 @@ export async function driveCase(
     if (ev) obs.pixelEvents.push(ev);
   });
 
-  const url = `${opts.baseUrl}/a/${funnel.row.slug}`;
+  const url = opts.entryUrl ?? `${opts.baseUrl}/a/${funnel.row.slug}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await hydrated(page);
   obs.trail.push(`opened ${url}`);

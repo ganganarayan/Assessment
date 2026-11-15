@@ -306,7 +306,8 @@ export async function adReadiness(assessmentId: string): Promise<
     prisma.appSetting.findUnique({ where: appSettingWhere(a.tenantId) as never, select: { metaNotUsed: true } }),
     resolveMetaConfig(a.tenantId, a.adAccountId),
   ]);
-  const usesMeta = a.fireMetaCapi && (setting as { metaNotUsed?: boolean } | null)?.metaNotUsed !== true;
+  const workspaceUsesMeta = (setting as { metaNotUsed?: boolean } | null)?.metaNotUsed !== true;
+  const usesMeta = a.fireMetaCapi && workspaceUsesMeta;
   const missing = [!meta.pixelId && "pixel id", !meta.capiToken && "Conversions API token"].filter(Boolean) as string[];
   const accountProblem = missing.length ? `The ad account this funnel reports to has no ${missing.join(" and no ")}.` : null;
 
@@ -336,7 +337,7 @@ export async function adReadiness(assessmentId: string): Promise<
     })),
     resultBands: a.resultBands,
     resultPage: { bound, published },
-    meta: { usesMeta, accountProblem, hasTestEventCode: !!meta.testEventCode },
+    meta: { usesMeta, workspaceUsesMeta, accountProblem, hasTestEventCode: !!meta.testEventCode },
     runs: {
       capiAccepted: capiOk.length > 0,
       pixelReached: pixel.some((e) => e.status === "would_fire" || e.status === "fired"),

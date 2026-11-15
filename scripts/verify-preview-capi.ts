@@ -31,7 +31,9 @@ function expect(name: string, ok: boolean, detail = ""): void {
 }
 
 const root = join(__dirname, "..");
-const read = (rel: string) => readFileSync(join(root, rel), "utf8");
+// Line endings normalised: a Windows checkout has CRLF, Railway's has LF, and the
+// slices below look for "\n}\n".
+const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 console.log("Preview never reaches the Conversions API\n");
 
