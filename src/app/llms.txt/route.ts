@@ -29,7 +29,7 @@ export async function GET(): Promise<Response> {
     "",
     `> ${MARKETING.description}`,
     "",
-    `${MARKETING.name} is a lead qualification and assessment platform. It scores each enquiry against criteria the customer defines, screens out the ones that do not fit before they become leads, and reports qualification back to the ad platform that produced the traffic.`,
+    `${MARKETING.name} is a lead qualification and quiz platform. It runs scored quizzes and assessments, either on their own or behind a qualification gate that turns away wrong-fit people before they become leads, and reports only qualified leads back to Meta.`,
     "",
     "## Guides",
     "",

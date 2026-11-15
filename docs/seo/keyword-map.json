@@ -289,9 +289,24 @@
           "role": "secondary"
         },
         {
+          "term": "best lead qualification quiz software",
+          "url": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "best quiz app for qualifying leads",
+          "url": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+          "role": "primary"
+        },
+        {
           "term": "do quiz funnels work",
           "url": "/answers/do-quiz-funnels-still-work",
           "role": "primary"
+        },
+        {
+          "term": "gated quiz funnel",
+          "url": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
+          "role": "secondary"
         },
         {
           "term": "interactive assessment",
@@ -301,6 +316,16 @@
         {
           "term": "lead qualification quiz",
           "url": "/lead-qualification-quiz",
+          "role": "primary"
+        },
+        {
+          "term": "lead qualification quiz tools compared",
+          "url": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "qualification gate before quiz",
+          "url": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
           "role": "primary"
         },
         {
@@ -324,8 +349,23 @@
           "role": "secondary"
         },
         {
+          "term": "quiz funnel tools compared",
+          "url": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+          "role": "secondary"
+        },
+        {
           "term": "quiz marketing funnel",
           "url": "/answers/what-is-a-quiz-funnel",
+          "role": "secondary"
+        },
+        {
+          "term": "quiz without a gate",
+          "url": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
+          "role": "secondary"
+        },
+        {
+          "term": "scored quiz for lead generation",
+          "url": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
           "role": "secondary"
         },
         {
@@ -359,6 +399,11 @@
           "term": "how do i qualify leads before a sales call",
           "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
           "role": "primary"
+        },
+        {
+          "term": "lead qualification gate",
+          "url": "/answers/what-is-a-qualification-gate",
+          "role": "secondary"
         },
         {
           "term": "lead qualifying questions",
@@ -396,6 +441,16 @@
           "role": "secondary"
         },
         {
+          "term": "pre-qualification questions",
+          "url": "/answers/what-is-a-qualification-gate",
+          "role": "secondary"
+        },
+        {
+          "term": "qualification gate",
+          "url": "/answers/what-is-a-qualification-gate",
+          "role": "primary"
+        },
+        {
           "term": "qualify leads automatically",
           "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
           "role": "secondary"
@@ -423,6 +478,11 @@
         {
           "term": "sales qualification questions",
           "url": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+          "role": "secondary"
+        },
+        {
+          "term": "screening questions before a quiz",
+          "url": "/answers/what-is-a-qualification-gate",
           "role": "secondary"
         },
         {
@@ -630,6 +690,8 @@
     "automated lead scoring": "/lead-scoring",
     "b2b saas lead qualification": "/lead-qualification-for-saas",
     "bad timing lead": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+    "best lead qualification quiz software": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+    "best quiz app for qualifying leads": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
     "borderline lead review": "/answers/will-a-qualification-gate-reject-good-leads",
     "broker enquiry screening": "/lead-qualification-for-insurance-brokers",
     "browser pixel vs conversions api": "/answers/should-lead-events-go-through-the-browser-or-the-server",
@@ -664,6 +726,7 @@
     "filter unqualified leads": "/lead-qualification-software",
     "financial advisor lead qualification": "/lead-qualification-for-financial-advisors",
     "financial planning lead screening": "/lead-qualification-for-financial-advisors",
+    "gated quiz funnel": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
     "google forms alternative": "/google-forms-alternative",
     "google forms alternative for lead qualification": "/google-forms-alternative",
     "google forms vs assess360": "/google-forms-alternative",
@@ -705,8 +768,10 @@
     "lead qualification for law firms": "/lead-qualification-for-law-firms",
     "lead qualification for real estate": "/lead-qualification-for-real-estate",
     "lead qualification for saas": "/lead-qualification-for-saas",
+    "lead qualification gate": "/answers/what-is-a-qualification-gate",
     "lead qualification platform": "/lead-qualification-software",
     "lead qualification quiz": "/lead-qualification-quiz",
+    "lead qualification quiz tools compared": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
     "lead qualification scorecard": "/scorecard",
     "lead qualification software": "/lead-qualification-software",
     "lead qualification software definition": "/answers/what-is-lead-qualification-software",
@@ -751,9 +816,12 @@
     "personalized assessment": "/assessment-software",
     "pre-call qualification": "/qualify-leads-before-sales-call",
     "pre-call screening questions": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "pre-qualification questions": "/answers/what-is-a-qualification-gate",
     "property lead qualification": "/lead-qualification-for-real-estate",
     "prospect qualification software": "/answers/what-is-lead-qualification-software",
     "prospect scoring": "/lead-scoring",
+    "qualification gate": "/answers/what-is-a-qualification-gate",
+    "qualification gate before quiz": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
     "qualification lower lead volume": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
     "qualification scoring": "/lead-scoring",
     "qualified lead conversion event": "/meta-ads-lead-qualification",
@@ -776,12 +844,18 @@
     "qualify saas demo requests": "/lead-qualification-for-saas",
     "qualify software project enquiries": "/lead-qualification-for-it-services",
     "questions to qualify a lead": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+    "quiz builder": "/quiz-maker-for-lead-generation",
     "quiz funnel": "/lead-qualification-quiz",
     "quiz funnel meaning": "/answers/what-is-a-quiz-funnel",
     "quiz funnel results": "/answers/do-quiz-funnels-still-work",
     "quiz funnel software": "/lead-qualification-quiz",
+    "quiz funnel tools compared": "/answers/what-is-the-best-quiz-app-for-qualifying-leads",
+    "quiz maker for business": "/quiz-maker-for-lead-generation",
+    "quiz maker for lead generation": "/quiz-maker-for-lead-generation",
     "quiz marketing funnel": "/answers/what-is-a-quiz-funnel",
     "quiz results page design": "/answers/what-should-a-scorecard-result-page-show",
+    "quiz with qualification gate": "/quiz-maker-for-lead-generation",
+    "quiz without a gate": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
     "real estate lead qualification": "/lead-qualification-for-real-estate",
     "real estate lead screening": "/lead-qualification-for-real-estate",
     "retarget qualified leads": "/answers/can-i-retarget-only-the-leads-that-qualified",
@@ -798,6 +872,9 @@
     "scorecard meaning marketing": "/answers/what-is-an-online-scorecard",
     "scorecard result page": "/answers/what-should-a-scorecard-result-page-show",
     "scorecard software": "/scorecard",
+    "scored quiz for lead generation": "/answers/should-i-put-a-qualification-gate-before-my-quiz",
+    "scored quiz maker": "/quiz-maker-for-lead-generation",
+    "screening questions before a quiz": "/answers/what-is-a-qualification-gate",
     "server side conversion tracking": "/answers/should-lead-events-go-through-the-browser-or-the-server",
     "should unqualified leads book a call": "/answers/should-i-let-unqualified-leads-book-a-call",
     "software development lead qualification": "/lead-qualification-for-it-services",

@@ -16,6 +16,9 @@ import { answer as scorecardResultPage } from "./answers/what-should-a-scorecard
 
 import { answer as whatIsAQuizFunnel } from "./answers/what-is-a-quiz-funnel";
 import { answer as doQuizFunnelsStillWork } from "./answers/do-quiz-funnels-still-work";
+import { answer as gateOrNot } from "./answers/should-i-put-a-qualification-gate-before-my-quiz";
+import { answer as bestQuizApp } from "./answers/what-is-the-best-quiz-app-for-qualifying-leads";
+import { answer as whatIsAGate } from "./answers/what-is-a-qualification-gate";
 
 import { answer as qualifyBeforeCall } from "./answers/how-do-i-qualify-leads-before-a-sales-call";
 import { answer as questionsToQualify } from "./answers/what-questions-should-i-ask-to-qualify-a-lead";
@@ -38,6 +41,7 @@ import { page as scorecard } from "./pages/scorecard";
 import { page as leadQualificationQuiz } from "./pages/lead-qualification-quiz";
 import { page as qualifyLeadsBeforeSalesCall } from "./pages/qualify-leads-before-sales-call";
 import { page as metaAdsLeadQualification } from "./pages/meta-ads-lead-qualification";
+import { page as quizMaker } from "./pages/quiz-maker-for-lead-generation";
 
 // Comparison pages (kind: comparison). Each names a real product and carries the
 // date its facts were checked, because another company's product changes without
@@ -99,7 +103,10 @@ export const ANSWER_SOURCES = [
   // Quiz funnels
   whatIsAQuizFunnel,
   doQuizFunnelsStillWork,
+  gateOrNot,
+  bestQuizApp,
   // Qualifying before the call
+  whatIsAGate,
   qualifyBeforeCall,
   questionsToQualify,
   unqualifiedBooking,
@@ -122,6 +129,7 @@ export const PAGE_SOURCES = [
   leadQualificationQuiz,
   qualifyLeadsBeforeSalesCall,
   metaAdsLeadQualification,
+  quizMaker,
   // Industry pages
   agencies,
   coaches,
