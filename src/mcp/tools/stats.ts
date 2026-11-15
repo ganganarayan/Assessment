@@ -42,14 +42,25 @@ function rekey(w: Window, field: string): Record<string, unknown> {
   return w.createdAt ? { [field]: w.createdAt } : {};
 }
 
-async function testRuns(ctx: ToolContext, w: Window, assessmentId: string | undefined, adFilter: Record<string, unknown>) {
-  const base = { ...tenantWhere(ctx), ...(assessmentId ? { assessmentId } : {}), isPreview: true, ...adFilter };
-  const [optins, completed, gatePassed] = await Promise.all([
-    prisma.submission.count({ where: { ...base, ...w } }),
-    prisma.submission.count({ where: { ...base, ...w, status: "COMPLETED" } }),
-    prisma.gateEntry.count({ where: { ...base, ...rekey(w, "passedAt") } }),
+/** Owner test runs (?preview=1 or the signed test link), counted apart from real traffic.
+ *  adFilter matches the json attribution (submissions, gate passes); flatFilter the utm
+ *  columns (page views, gate rejections). */
+async function testRuns(
+  ctx: ToolContext,
+  w: Window,
+  assessmentId: string | undefined,
+  adFilter: Record<string, unknown>,
+  flatFilter: Record<string, unknown> = {},
+) {
+  const one = { ...(assessmentId ? { assessmentId } : {}), isPreview: true };
+  const [visits, turnedAway, optins, completed, gatePassed] = await Promise.all([
+    prisma.pageView.count({ where: { ...tenantWhere(ctx), ...one, ...flatFilter, ...w } }),
+    prisma.gateDisqualification.count({ where: { ...tenantWhere(ctx), ...one, ...flatFilter, ...w, repeat: false } }),
+    prisma.submission.count({ where: { ...tenantWhere(ctx), ...one, ...adFilter, ...w } }),
+    prisma.submission.count({ where: { ...tenantWhere(ctx), ...one, ...adFilter, ...w, status: "COMPLETED" } }),
+    prisma.gateEntry.count({ where: { ...tenantWhere(ctx), ...one, ...adFilter, ...rekey(w, "passedAt") } }),
   ]);
-  return { opt_ins: optins, completed, gate_passed: gatePassed };
+  return { visits, turned_away: turnedAway, opt_ins: optins, completed, gate_passed: gatePassed };
 }
 
 function jsonPath(param: AdParam, adId: string) {
@@ -62,9 +73,9 @@ async function adFilteredCore(ctx: ToolContext, w: Window, assessmentId: string 
   const flat = { [col]: adId };
   const json = jsonPath(param, adId);
   const [views, unique, disqualified, gatePassed, optins, completed] = await Promise.all([
-    prisma.pageView.count({ where: { ...scope, ...w, isBot: false, ...flat } }),
-    prisma.pageView.findMany({ where: { ...scope, ...w, isBot: false, ...flat }, select: { visitorId: true }, distinct: ["visitorId"] }),
-    prisma.gateDisqualification.count({ where: { ...scope, ...w, repeat: false, isBot: false, ...flat } }),
+    prisma.pageView.count({ where: { ...scope, ...w, isBot: false, isPreview: false, ...flat } }),
+    prisma.pageView.findMany({ where: { ...scope, ...w, isBot: false, isPreview: false, ...flat }, select: { visitorId: true }, distinct: ["visitorId"] }),
+    prisma.gateDisqualification.count({ where: { ...scope, ...w, repeat: false, isBot: false, isPreview: false, ...flat } }),
     prisma.gateEntry.count({ where: { ...scope, ...rekey(w, "passedAt"), isPreview: false, ...json } }),
     prisma.submission.count({ where: { ...scope, ...w, isPreview: false, ...json } }),
     prisma.submission.count({ where: { ...scope, ...w, isPreview: false, status: "COMPLETED", ...json } }),
@@ -75,7 +86,7 @@ async function adFilteredCore(ctx: ToolContext, w: Window, assessmentId: string 
     disqualified,
     opt_ins: optins,
     completed,
-    test_runs: await testRuns(ctx, w, assessmentId, json),
+    test_runs: await testRuns(ctx, w, assessmentId, json, flat),
   };
 }
 
@@ -85,8 +96,8 @@ async function byAd(ctx: ToolContext, w: Window, assessmentId: string | undefine
   const col = AD_COLUMN[param];
   const scope = { ...tenantWhere(ctx), ...(assessmentId ? { assessmentId } : {}) };
   const [views, dq, entries, subs] = await Promise.all([
-    prisma.pageView.groupBy({ by: [col], where: { ...scope, ...w, isBot: false }, _count: { _all: true } }),
-    prisma.gateDisqualification.groupBy({ by: [col], where: { ...scope, ...w, repeat: false, isBot: false }, _count: { _all: true } }),
+    prisma.pageView.groupBy({ by: [col], where: { ...scope, ...w, isBot: false, isPreview: false }, _count: { _all: true } }),
+    prisma.gateDisqualification.groupBy({ by: [col], where: { ...scope, ...w, repeat: false, isBot: false, isPreview: false }, _count: { _all: true } }),
     prisma.gateEntry.findMany({ where: { ...scope, ...rekey(w, "passedAt"), isPreview: false }, select: { attribution: true }, take: MAX_ROWS }),
     prisma.submission.findMany({ where: { ...scope, ...w, isPreview: false }, select: { attribution: true, status: true }, take: MAX_ROWS }),
   ]);
@@ -141,14 +152,15 @@ const getFunnelStats = defineTool({
     const out = {
       funnel,
       window,
-      visits: { total: s.totalViews, unique: s.uniqueViews, note: "Humans only; bots and Meta ad review are excluded." },
-      gate_passed: { all: s.qualified, real: Math.max(0, s.qualified - tests.gate_passed), test_runs: tests.gate_passed },
+      visits: { total: s.totalViews, unique: s.uniqueViews, test_runs: tests.visits, note: "Real visits: humans only; bots, Meta ad review and owner test runs are excluded." },
+      gate_passed: { all: s.qualified + tests.gate_passed, real: s.qualified, test_runs: tests.gate_passed },
       disqualified: {
         turned_away: s.disqualified,
         routed_to_another_path: s.routedOn,
         repeat_visits_by_already_rejected: s.disqualifiedRepeat,
         by_exit: s.byExit,
-        note: "Gate rejections carry no preview flag, so test runs cannot be separated here.",
+        test_runs: tests.turned_away,
+        note: "turned_away, repeat visits and by_exit are real rejections only; test_runs counts owner test rejections, never sent to Meta.",
       },
       dropped_after_gate: { left_at_optin: s.leftOptin, never_reached_optin: s.gateIncomplete },
       opt_ins: { all: s.optins, real: Math.max(0, s.optins - tests.opt_ins), test_runs: tests.opt_ins },

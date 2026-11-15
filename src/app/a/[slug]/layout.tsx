@@ -7,6 +7,7 @@ import { resolveMetaConfig, resolveHeatmapCode } from "@/lib/settings/config";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { MetaPixel } from "@/components/meta-pixel";
 import { HeatmapRecording } from "@/components/heatmap-recording";
+import { isTestRunFor } from "@/lib/funnel/test-link";
 
 /**
  * Per-assessment funnel layout: loads THIS assessment's tenant and mounts its Meta
@@ -18,7 +19,7 @@ const ownerOf = (slug: string) =>
     where: { slug },
     // adAccountId: which pixel THIS funnel renders. Null = the tenant's default, which
     // is what every assessment carried before the picker existed.
-    select: { tenantId: true, heatmapCode: true, adAccountId: true },
+    select: { id: true, tenantId: true, heatmapCode: true, adAccountId: true },
   });
 
 /**
@@ -60,10 +61,14 @@ export default async function AssessmentSlugLayout({
   // This assessment's own recording snippet wins; else fall back to the tenant default.
   // Suppressed entirely when the tenant's plan doesn't include heatmap recording.
   const heatmapCode = canHeatmap ? (a?.heatmapCode?.trim() || tenantHeatmap) : null;
+  // An owner test run through the signed test link loads no browser pixel at all, so the
+  // owner never lands in their own Meta audiences. ?preview=1 alone keeps the pixel, for
+  // Pixel Helper. See lib/funnel/test-link.ts.
+  const testRun = a ? await isTestRunFor(a.id) : false;
   return (
     <>
       {themeCss ? <style dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
-      <MetaPixel pixelId={pixelId} />
+      {testRun ? null : <MetaPixel pixelId={pixelId} />}
       <HeatmapRecording code={heatmapCode} />
       {children}
       {/* The OWNER's privacy and terms, under the funnel and its result page. */}

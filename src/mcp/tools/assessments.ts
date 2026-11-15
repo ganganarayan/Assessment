@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { publicOriginFor } from "@/lib/tenant/public-origin";
+import { testLinkUrl } from "@/lib/funnel/test-link";
 import { audienceGateSchema, qualificationSchema, readExits } from "@/features/assessment/schemas";
 import { defineTool, ToolError, type ToolDef } from "@/mcp/core/types";
 import { idInput, tenantWhere } from "@/mcp/tools/shared";
@@ -106,6 +107,12 @@ const getAssessment = defineTool({
       slug: a.slug,
       status: a.status,
       public_url: `${origin}/a/${a.slug}`,
+      // Every owner test goes through this link, never public_url: it is flagged as a
+      // test everywhere, loads no browser pixel and sends no production event to Meta.
+      test_link: (() => {
+        const t = testLinkUrl(origin, a.slug, a.id);
+        return { url: t.url, expires: t.expiresAt, note: "Give the owner this link for test runs. Never ask them to test on public_url." };
+      })(),
       headline: { eyebrow: a.eyebrow, subheadline: a.subheadline, description: a.description },
       engine: a.engine,
       display_mode: a.questionDisplayMode,

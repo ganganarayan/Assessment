@@ -1272,6 +1272,10 @@ model PageView {
   visitorId    String
   createdAt    DateTime   @default(now())
 
+  /// An owner test run (?preview=1 or the signed test link). Recorded so the run behaves
+  /// like the real thing, kept out of every real visit count. See Submission.isPreview.
+  isPreview Boolean @default(false)
+
   // Marketing attribution captured at page-view time (before any lead exists),
   // so traffic-source counts populate even with zero opt-ins.
   utmSource   String?
@@ -3114,6 +3118,10 @@ model AppSetting {
 model GateDisqualification {
   id           String     @id @default(cuid())
   assessmentId String
+
+  /// An owner test run turned away on purpose. Never counted as a real rejection and
+  /// never sent to Meta. See Submission.isPreview.
+  isPreview Boolean @default(false)
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   visitorId    String
   createdAt    DateTime   @default(now())
@@ -3356,6 +3364,9 @@ model AdAccount {
   pixelId      String?
   /// Encrypted at rest, like every other secret in this schema.
   capiTokenEnc String?
+  /// Meta Events Manager "Test events" code. Owner test runs send to Meta ONLY with this
+  /// code attached, so they land in the Test events tab and in no audience. Not a secret.
+  testEventCode String?
 
   /// The one used when an assessment names no ad account. Exactly one per tenant is
   /// enforced by a PARTIAL UNIQUE INDEX in the migration - Prisma cannot express

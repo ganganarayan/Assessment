@@ -76,7 +76,8 @@ export async function getAnalyticsStats(
   const scope = await createdAtScope(range, dataScope, opts);
   // Page-view metrics count real humans only - bot/crawler hits (e.g. Meta's
   // ad-review agent) are recorded but never counted as traffic.
-  const humanScope = { ...scope, isBot: false };
+  // Owner test runs (isPreview) are kept out of every real number on this screen.
+  const humanScope = { ...scope, isBot: false, isPreview: false };
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, productAgg, disqualified, disqualifiedRepeat, qualified, gatePassers, optinIds, fired] = await Promise.all([
     prisma.pageView.count({ where: humanScope }),
@@ -108,21 +109,21 @@ export async function getAnalyticsStats(
     // Turned away by the qualification gate. FRESH rejections only (`repeat` rows are
     // revisits by someone already rejected) and humans only - so this is people, not
     // the event volume Meta sees. Zero for an ungated assessment.
-    prisma.gateDisqualification.count({ where: { ...scope, repeat: false, isBot: false } }),
+    prisma.gateDisqualification.count({ where: { ...scope, repeat: false, isBot: false, isPreview: false } }),
     // Revisits by someone the gate already rejected: they are short-circuited to the
     // exit page without re-answering, so they are NOT new people. Counted separately
     // because a funnel that reads "0 turned away" while returning visitors pile up is
     // exactly the blind spot that hides a permanent lockout.
-    prisma.gateDisqualification.count({ where: { ...scope, repeat: true, isBot: false } }),
+    prisma.gateDisqualification.count({ where: { ...scope, repeat: true, isBot: false, isPreview: false } }),
     // Passed the gate. The mirror of "turned away": everyone who answered page 1 is
     // one or the other, so views - (qualified + disqualified) is the bounce.
-    prisma.gateEntry.count({ where: rekeyScope(scope, "passedAt") }),
+    prisma.gateEntry.count({ where: { ...rekeyScope(scope, "passedAt"), isPreview: false } }),
     // The gate passers themselves, not a count: deciding WHICH loss each one is needs
     // the person, because someone who opted in is not a loss at all and must be left out
     // of both. Counting instead, and subtracting opt-ins from the total, produced "8
     // never reached the form" on a funnel where 6 people had filled it in.
     prisma.gateEntry.findMany({
-      where: rekeyScope(scope, "passedAt"),
+      where: { ...rekeyScope(scope, "passedAt"), isPreview: false },
       select: { visitorId: true, optinSeenAt: true, emailCapturedAt: true },
     }),
     // The first-party ids that DID opt in, to match gate passers against. Same
@@ -168,7 +169,7 @@ export async function getAnalyticsStats(
   // routing is that those are different outcomes worth different money.
   const exitGroups = await prisma.gateDisqualification.groupBy({
     by: ["assessmentId", "exitKey"],
-    where: { ...scope, repeat: false, isBot: false },
+    where: { ...scope, repeat: false, isBot: false, isPreview: false },
     _count: { _all: true },
   });
   // Named here rather than on the page: a key means nothing to anybody, and the name
@@ -242,7 +243,7 @@ export async function getUtmBreakdown(range?: { from?: string; to?: string }, da
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
     // Traffic source is a human-only view; bot hits are excluded.
-    where: { ...where, isBot: false },
+    where: { ...where, isBot: false, isPreview: false },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
     take: 200,

@@ -4120,6 +4120,40 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Save the conditional-routing rules for ONE question (the rules of its options). A NEXT rule means \"no route\" and is stored as the ABSENCE of a row, so the default flow needs no data. JUMP targets are validated to exist in the same assessment and to be strictly FORWARD of this question (guarantees no loops). Edit-guarded + scope-checked exactly like the question CRUD actions."
   },
   {
+    "id": "assessment.test-runs.clearTestRuns",
+    "module": "@/features/assessment/actions/test-runs",
+    "fn": "clearTestRuns",
+    "file": "src/features/assessment/actions/test-runs.ts",
+    "kind": "write",
+    "destructive": true,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<{ visits: number; gate_passed: number; turned_away: number; submissions: number; }>>",
+    "doc": "Delete every owner test run of one assessment: test visits, test gate passes and rejections, and test submissions with their answers. Real traffic is never touched."
+  },
+  {
+    "id": "assessment.test-runs.getTestLink",
+    "module": "@/features/assessment/actions/test-runs",
+    "fn": "getTestLink",
+    "file": "src/features/assessment/actions/test-runs.ts",
+    "kind": "read",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<{ url: string; expires: Date; live_url: string; }>>",
+    "doc": "The signed test link for one assessment (valid 7 days). Opens drafts too, loads no browser pixel, skips the retake lock, and never sends a production event to Meta. Hand this to the owner for every test run; never the live link."
+  },
+  {
     "id": "assessment.transfer.importAssessments",
     "module": "@/features/assessment/actions/transfer",
     "fn": "importAssessments",
@@ -8823,6 +8857,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/assessment/actions/result-band": () => import("@/features/assessment/actions/result-band") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/result-page": () => import("@/features/assessment/actions/result-page") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/routing": () => import("@/features/assessment/actions/routing") as Promise<Record<string, unknown>>,
+  "@/features/assessment/actions/test-runs": () => import("@/features/assessment/actions/test-runs") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/transfer": () => import("@/features/assessment/actions/transfer") as Promise<Record<string, unknown>>,
   "@/features/automation/actions": () => import("@/features/automation/actions") as Promise<Record<string, unknown>>,
   "@/features/automation/zoom": () => import("@/features/automation/zoom") as Promise<Record<string, unknown>>,

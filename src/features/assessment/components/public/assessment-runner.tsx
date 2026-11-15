@@ -489,7 +489,7 @@ export function AssessmentRunner({
   useEffect(() => {
     // Recorded in preview too: the owner is testing whether the funnel works, and a
     // page view that only happens for strangers is a thing they cannot check.
-    void recordOptinView(assessment.slug, attribution).catch(() => {});
+    void recordOptinView(assessment.slug, attribution, preview).catch(() => {});
     // Fire once per page load. attribution is read at mount (the URL is fixed for
     // the load); it's intentionally NOT a dep so a new object reference from a
     // re-render can't re-fire and double-count the view.

@@ -84,6 +84,7 @@ import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/l
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { supersedeStoredReport } from "@/lib/reports/store";
+import { isTestRunFor } from "@/lib/funnel/test-link";
 
 /** The ONE system-level fallback for the result-token TTL (overridable per
  *  assessment). 30 days - long enough that revisits and the emailed result link
@@ -794,6 +795,10 @@ export async function startSubmission(
   if (preview) {
     const u = await getCurrentUser();
     adminPreview = u ? isPlatformOwner(u.email) : false;
+    // The signed test link (lib/funnel/test-link.ts) proves the owner of THIS funnel is
+    // testing, in any workspace and without signing in, so the retake lock steps aside:
+    // the four test paths reuse one email.
+    if (!adminPreview) adminPreview = await isTestRunFor(assessment.id);
   }
 
   // Extra opt-in field answers - sanitized + capped (untrusted client input).

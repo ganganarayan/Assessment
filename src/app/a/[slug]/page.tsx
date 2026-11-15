@@ -8,6 +8,7 @@ import {
   readAssessmentForOwnerPreview,
 } from "@/features/assessment/data";
 import { funnelServedHere, mayViewAcrossTenants } from "@/lib/tenant/public-scope";
+import { isTestRunFor } from "@/lib/funnel/test-link";
 import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
@@ -153,7 +154,9 @@ export default async function PublicAssessmentPage({
   }
   // Published funnels are public, so a preview link to one is not gated - that is the
   // link the publish screen shares. An UNPUBLISHED one is somebody's unfinished work.
-  if (preview && a.status !== "PUBLISHED" && !(await mayViewAcrossTenants(a.tenantId))) notFound();
+  // A signed test link opens a draft too: the owner is often testing from a phone that
+  // is not signed in.
+  if (preview && a.status !== "PUBLISHED" && !(await isTestRunFor(a.id)) && !(await mayViewAcrossTenants(a.tenantId))) notFound();
 
   // PARKED → paused page, before any of the work below. Checked here rather than deeper
   // in the runner so a parked funnel costs one plan lookup instead of building the whole

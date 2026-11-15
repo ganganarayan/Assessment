@@ -46,6 +46,8 @@ const VISITOR_COOKIE = "a360_vid";
 export async function recordOptinView(
   slug: string,
   attribution?: Record<string, string>,
+  /** An owner test run: the view is recorded, flagged, and kept out of real visit counts. */
+  preview?: boolean,
 ): Promise<void> {
   try {
     // Every funnel visit is also a chance to clear an abandon verdict that fell due
@@ -115,7 +117,7 @@ export async function recordOptinView(
     if (existing) {
       // Warm visitor: bound replays per visitor (normal refreshes stay well under).
       if (!rateLimit(`pv:vid:${existing}`, 10)) return;
-      await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: existing, ...utm, ...meta } });
+      await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: existing, ...utm, ...meta, isPreview: !!preview } });
       return;
     }
 
@@ -130,7 +132,7 @@ export async function recordOptinView(
       sameSite: "lax",
       path: "/",
     });
-    await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm, ...meta } });
+    await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm, ...meta, isPreview: !!preview } });
   } catch {
     // never surface analytics failures to the visitor
   }
@@ -422,7 +424,9 @@ export async function recordGateDisqualification(
     }
 
     const row = await prisma.gateDisqualification.create({
-      data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm, ...meta },
+      // isPreview: an owner testing the turn-away path. Stored so the run is real, kept
+      // out of every real rejection count, and never sent to Meta (fireGateDisqualified).
+      data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm, ...meta, isPreview: !!preview },
       select: { id: true },
     });
 
