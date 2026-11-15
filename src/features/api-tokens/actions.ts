@@ -81,7 +81,7 @@ export async function mintApiToken(scope: string, label: string): Promise<Action
  * Mint the workspace's MCP key (Claude connection).
  *
  * Different from the data keys above, by the owner's rules (14-11-2026):
- *  - every PAID plan may hold one (mcpWorkspaceEligibility), not only Agency
+ *  - the trial and every paid plan may hold one (mcpWorkspaceEligibility), not only Agency
  *  - ONE active MCP key per workspace; an agency's one key also reaches its clients, so a
  *    client workspace never mints its own
  *  - the owner's key is always stamped on the Platform workspace, whatever workspace they

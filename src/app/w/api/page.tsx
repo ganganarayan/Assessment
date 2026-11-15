@@ -24,7 +24,7 @@ export default async function WorkspaceApiTokensPage() {
   // workspace's leads is exactly the thing that must not be reachable by typing the
   // URL. A super admin operating the workspace is never gated.
   const dataKeys = impersonating || (await tenantCan(tenantId, "apiAccess"));
-  // The Claude (MCP) key: every paid plan, one per workspace, never inside a client
+  // The Claude (MCP) key: the trial and every paid plan, one per workspace, never inside a client
   // workspace (its agency's key reaches it). The owner's own MCP key is minted on /admin.
   const mcpKeys = !impersonating && !viaAgency && (await mcpWorkspaceEligibility(tenantId)).ok;
   // A workspace's Claude key is always read and write: any setup Claude does for a
