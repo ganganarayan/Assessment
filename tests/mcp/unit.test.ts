@@ -78,3 +78,16 @@ test("scopes and action unwrap", () => {
   assert.deepEqual(unwrapAction({ ok: true, data: { id: "1" } }), { id: "1" });
   assert.throws(() => unwrapAction({ ok: false, error: "nope" }), (e: unknown) => e instanceof ToolError && e.message === "nope");
 });
+
+test("dates: MCP YYYY-MM-DD reaches the app's DD-MM-YYYY range helper as a real IST window", async () => {
+  const { appDateRange } = await import("@/mcp/tools/shared");
+  const { istDateRangeToUtc } = await import("@/lib/date");
+  assert.deepEqual(appDateRange({ from: "2026-10-16", to: "2026-11-15" }), { from: "16-10-2026", to: "15-11-2026" });
+  assert.deepEqual(appDateRange({}), { from: undefined, to: undefined });
+  const app = appDateRange({ from: "2026-10-16", to: "2026-11-15" });
+  const { gte, lte } = istDateRangeToUtc(app.from, app.to);
+  assert.equal(gte?.toISOString(), "2026-10-15T18:30:00.000Z");
+  assert.equal(lte?.toISOString(), "2026-11-15T18:29:59.999Z");
+  // The bug: the raw MCP form was dropped, which silently meant "all time".
+  assert.deepEqual(istDateRangeToUtc("2026-10-16", "2026-11-15"), { gte: null, lte: null });
+});

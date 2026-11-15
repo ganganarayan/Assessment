@@ -12,6 +12,18 @@ export const dateInput = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
   .describe("YYYY-MM-DD, an IST day");
 
+/**
+ * MCP takes YYYY-MM-DD; the app's own range helpers (istDateRangeToUtc and everything built on it)
+ * read DD-MM-YYYY and silently drop anything else. Every from/to goes through here first.
+ */
+export function appDateRange(range: { from?: string; to?: string }): { from?: string; to?: string } {
+  const conv = (v?: string) => {
+    const m = v ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim()) : null;
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
+  };
+  return { from: conv(range.from), to: conv(range.to) };
+}
+
 export const idInput = z.string().trim().min(1).max(64);
 
 /** The workspace's where-fragment. Every MCP query spreads this; nothing reads unscoped. */
@@ -38,7 +50,8 @@ export async function reportingWindow(
   range: { from?: string; to?: string },
   assessment: { statsResetAt: Date | null } | null,
 ): Promise<{ createdAt?: { gte?: Date; lte?: Date }; floor: Date | null; gte: Date | null; lte: Date | null }> {
-  const { gte, lte } = istDateRangeToUtc(range.from, range.to);
+  const app = appDateRange(range);
+  const { gte, lte } = istDateRangeToUtc(app.from, app.to);
   const floor = assessment ? assessment.statsResetAt : await statsFloorFor(ctx.workspace.scope);
   const w = floorCreatedAt(floor, gte, lte) as { createdAt?: { gte?: Date; lte?: Date } };
   return { ...w, floor, gte, lte };

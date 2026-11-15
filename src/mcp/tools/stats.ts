@@ -8,6 +8,7 @@ import {
   adParamInput,
   assessmentInWorkspace,
   attributionValue,
+  appDateRange,
   dateInput,
   idInput,
   reportingWindow,
@@ -135,7 +136,7 @@ const getFunnelStats = defineTool({
       return { funnel, window, ad: { param: input.ad_param, id: input.ad_id }, ...(await adFilteredCore(ctx, w, a?.id, input.ad_param, input.ad_id)) };
     }
 
-    const s = await getAnalyticsStats({ from: input.from, to: input.to }, ctx.workspace.scope, a ? { assessmentId: a.id, floor: a.statsResetAt } : undefined);
+    const s = await getAnalyticsStats(appDateRange({ from: input.from, to: input.to }), ctx.workspace.scope, a ? { assessmentId: a.id, floor: a.statsResetAt } : undefined);
     const tests = await testRuns(ctx, w, a?.id, {});
     const out = {
       funnel,
@@ -172,7 +173,7 @@ const getTrafficSources = defineTool({
   input: z.object({ assessment_id: idInput.optional(), from: dateInput.optional(), to: dateInput.optional() }),
   run: async (ctx, input) => {
     const a = input.assessment_id ? await assessmentInWorkspace(ctx, input.assessment_id) : null;
-    const rows = await getUtmBreakdown({ from: input.from, to: input.to }, ctx.workspace.scope, a ? { assessmentId: a.id, floor: a.statsResetAt } : undefined);
+    const rows = await getUtmBreakdown(appDateRange({ from: input.from, to: input.to }), ctx.workspace.scope, a ? { assessmentId: a.id, floor: a.statsResetAt } : undefined);
     return { funnel: a ? { id: a.id, title: a.title } : "all funnels in this workspace", sources: rows.slice(0, 200), more: Math.max(0, rows.length - 200) };
   },
 });
