@@ -44,6 +44,7 @@ const EXCLUDED_MODULES: Record<string, string> = {
   "billing.test-charge": "checkout is paid in a browser",
   "payments.test-payment": "checkout is paid in a browser",
   "secrets": "returns stored secrets",
+  "connected-apps": "holds other apps' service secrets; set on the super admin Connected apps screen",
 };
 
 const EXCLUDED_ACTIONS: Record<string, string> = {

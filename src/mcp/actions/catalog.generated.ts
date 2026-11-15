@@ -6901,6 +6901,14 @@ export const EXCLUDED_ACTIONS: readonly { id: string; reason: string }[] = [
     "reason": "respondent manage-booking page"
   },
   {
+    "id": "connected-apps.saveConnectedApp",
+    "reason": "holds other apps' service secrets; set on the super admin Connected apps screen"
+  },
+  {
+    "id": "connected-apps.testConnectedApp",
+    "reason": "holds other apps' service secrets; set on the super admin Connected apps screen"
+  },
+  {
     "id": "contacts.actions-public.unsubscribeByToken",
     "reason": "respondent unsubscribe"
   },

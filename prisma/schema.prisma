@@ -5855,3 +5855,34 @@ model IndexNowRun {
 
   @@index([createdAt])
 }
+
+/// MCP gateway: one row per other app (AVideoRouter, VidaPulse, Content Engine, ...) whose
+/// tools Assess360's MCP server shows to a user who is active in that app. Set on the super
+/// admin Connected apps screen, never in env. A row with no url is skipped.
+model McpUpstreamApp {
+  id          String   @id @default(cuid())
+  /// Tool name prefix, e.g. "router" gives router_push_recording. Lowercase, unique.
+  prefix      String   @unique
+  name        String
+  /// The app's internal MCP endpoint. Null = not connected yet, skipped.
+  url         String?
+  /// X-Service-Secret, encrypted with lib/crypto (BETTER_AUTH_SECRET).
+  secretEnc   String?
+  description String
+  upgradeUrl  String?
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// A user asked not to hear about one app (by prefix, "assess360" included) until `until`.
+model McpSuggestionDismissal {
+  id        String   @id @default(cuid())
+  userId    String
+  app       String
+  until     DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, app])
+}
