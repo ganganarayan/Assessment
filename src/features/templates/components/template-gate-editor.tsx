@@ -572,11 +572,12 @@ export function TemplateGateEditor({
               {q.options.map((o, oi) => {
                 const outcome = optionOutcome(o);
                 return (
-                  <div key={o.id} className="flex flex-col gap-2 rounded-md border bg-[var(--muted)]/20 p-3">
-                    <div className="flex flex-wrap items-start gap-2">
+                  <div key={o.id} className="rounded-md border bg-[var(--muted)]/20 p-2">
+                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
                       <Input
                         className="min-w-[12rem] flex-1"
                         placeholder="Answer label"
+                        aria-label="Answer label"
                         value={o.label}
                         disabled={disabled}
                         onChange={(e) =>
@@ -589,6 +590,7 @@ export function TemplateGateEditor({
                         className="w-20"
                         type="number"
                         title="Points this answer adds to the gate score"
+                        aria-label="Points"
                         value={o.points}
                         disabled={disabled}
                         onChange={(e) =>
@@ -597,53 +599,51 @@ export function TemplateGateEditor({
                           })
                         }
                       />
+                      <select
+                        className={`${SELECT_CLASS} sm:w-44 sm:shrink-0`}
+                        aria-label="This answer means"
+                        title={OUTCOMES.find((x) => x.value === outcome)?.hint}
+                        value={outcome}
+                        disabled={disabled}
+                        onChange={(e) => setOutcome(qi, oi, e.target.value as GateOutcome)}
+                      >
+                        {OUTCOMES.map((x) => (
+                          <option key={x.value} value={x.value}>
+                            {x.label}
+                          </option>
+                        ))}
+                      </select>
+                      {outcome === "DISQUALIFY" ? (
+                        <select
+                          className={`${SELECT_CLASS} sm:w-44 sm:shrink-0`}
+                          aria-label="Sent to"
+                          title="Exit page this answer sends to. Blank = the first exit page."
+                          value={o.exitKey ?? ""}
+                          disabled={disabled}
+                          onChange={(e) =>
+                            setQuestion(qi, {
+                              options: replaceAt(q.options, oi, { ...o, exitKey: e.target.value }),
+                            })
+                          }
+                        >
+                          <option value="">First exit page</option>
+                          {namedExits.map((e2, ei) => (
+                            <option key={e2.key} value={e2.key}>
+                              {e2.name.trim() || `${UNNAMED_EXIT} ${ei + 1}`}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="text-red-600 hover:text-red-700"
+                        className="shrink-0 text-red-600 hover:text-red-700"
                         disabled={disabled || q.options.length <= 2}
                         onClick={() => setQuestion(qi, { options: removeAt(q.options, oi) })}
                       >
                         Remove
                       </Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="This answer means" hint={OUTCOMES.find((x) => x.value === outcome)?.hint}>
-                        <select
-                          className={SELECT_CLASS}
-                          value={outcome}
-                          disabled={disabled}
-                          onChange={(e) => setOutcome(qi, oi, e.target.value as GateOutcome)}
-                        >
-                          {OUTCOMES.map((x) => (
-                            <option key={x.value} value={x.value}>
-                              {x.label}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      {outcome === "DISQUALIFY" ? (
-                        <Field label="Sent to" hint="Blank = the first exit page.">
-                          <select
-                            className={SELECT_CLASS}
-                            value={o.exitKey ?? ""}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              setQuestion(qi, {
-                                options: replaceAt(q.options, oi, { ...o, exitKey: e.target.value }),
-                              })
-                            }
-                          >
-                            <option value="">First exit page</option>
-                            {namedExits.map((e2, ei) => (
-                              <option key={e2.key} value={e2.key}>
-                                {e2.name.trim() || `${UNNAMED_EXIT} ${ei + 1}`}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      ) : null}
                     </div>
                   </div>
                 );
