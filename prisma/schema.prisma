@@ -5831,3 +5831,27 @@ model WorkflowEdge {
   @@index([toStepId])
   @@map("workflow_edge")
 }
+
+/// IndexNow (Bing, Yandex, Seznam, Naver, Yep): one row per public URL last told to the
+/// search engines, with the lastmod it was sent at. A URL is sent again only when its
+/// lastmod changes, so a restart or a second replica never resends the whole site.
+model IndexNowUrl {
+  url         String   @id
+  host        String
+  lastmod     String
+  submittedAt DateTime @default(now())
+
+  @@index([host])
+}
+
+/// One submission batch per host, for the super-admin IndexNow screen.
+model IndexNowRun {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  host      String
+  count     Int
+  status    Int
+  note      String?
+
+  @@index([createdAt])
+}

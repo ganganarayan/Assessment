@@ -3939,6 +3939,17 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Unlock a delivered webhook so its name can be edited again (super admin only). Clears firstDeliveredAt. The delivered name a CRM maps on can then change, so this is a deliberate, gated action - the UI confirms the break-your-CRM risk."
   },
   {
+    "id": "indexnow.submitAllPagesNow",
+    "module": "@/features/indexnow/actions",
+    "fn": "submitAllPagesNow",
+    "file": "src/features/indexnow/actions.ts",
+    "kind": "write",
+    "destructive": true,
+    "params": [],
+    "returns": "Promise<{ ok: true; summary: SubmitSummary[]; }>",
+    "doc": "Super admin, IndexNow: send every public page now, changed or not."
+  },
+  {
     "id": "nurture.fetchWabaTemplates",
     "module": "@/features/nurture/actions",
     "fn": "fetchWabaTemplates",
@@ -7024,6 +7035,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/events/actions/capi-test": () => import("@/features/events/actions/capi-test") as Promise<Record<string, unknown>>,
   "@/features/events/actions/settings": () => import("@/features/events/actions/settings") as Promise<Record<string, unknown>>,
   "@/features/events/actions/webhooks": () => import("@/features/events/actions/webhooks") as Promise<Record<string, unknown>>,
+  "@/features/indexnow/actions": () => import("@/features/indexnow/actions") as Promise<Record<string, unknown>>,
   "@/features/nurture/actions": () => import("@/features/nurture/actions") as Promise<Record<string, unknown>>,
   "@/features/onboarding/actions": () => import("@/features/onboarding/actions") as Promise<Record<string, unknown>>,
   "@/features/payments/actions/payment-links": () => import("@/features/payments/actions/payment-links") as Promise<Record<string, unknown>>,

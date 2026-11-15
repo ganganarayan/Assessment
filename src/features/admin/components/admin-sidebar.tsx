@@ -164,6 +164,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/ai", label: "AI" },
       { href: "/admin/operations", label: "Operations" },
+      { href: "/admin/indexnow", label: "IndexNow" },
       { href: "/admin/staff", label: "Staff" },
       // A machine credential is who you are to the API, not a thing that runs by
       // itself, so it belongs with the rest of the account rather than in Automation.

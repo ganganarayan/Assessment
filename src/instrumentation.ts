@@ -23,5 +23,10 @@ export async function register() {
 
     const { startLifecyclePlanner } = await import("@/lib/lifecycle/heartbeat");
     startLifecyclePlanner();
+
+    // After each deploy (a deploy is a server start), tell IndexNow what changed.
+    // Production only; it does nothing on staging.
+    const { scheduleIndexNowAfterBoot } = await import("@/lib/indexnow/submit");
+    scheduleIndexNowAfterBoot();
   }
 }
