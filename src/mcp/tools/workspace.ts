@@ -5,6 +5,7 @@ import { resolvePlan } from "@/lib/billing/plan-resolve";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { defineTool, type ToolDef } from "@/mcp/core/types";
+import { readOnlyMessage } from "@/mcp/core/key-page";
 
 const connectionStatus = defineTool({
   name: "connection_status",
@@ -25,6 +26,10 @@ const connectionStatus = defineTool({
         prefix: identity.tokenPrefix,
         label: identity.tokenLabel,
         access: identity.scope === "mcp_write" ? "read and write" : "read only",
+        can_write: identity.scope === "mcp_write",
+        // Said up front: a read-only key never even sees the write tools, so without this
+        // Claude cannot tell the person why it is unable to build anything.
+        read_only_notice: identity.scope === "mcp_write" ? undefined : readOnlyMessage(identity),
         acting_as: { name: identity.user.name, email: identity.user.email },
         reach: identity.isOwner
           ? "every workspace on the platform (owner key)"

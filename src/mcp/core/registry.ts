@@ -7,6 +7,7 @@ import { resolveCallWorkspace } from "@/mcp/core/auth";
 import { checkPreviewToken, issuePreviewToken } from "@/mcp/core/confirm";
 import { toJsonSchema, type JsonSchema } from "@/mcp/core/json-schema";
 import { chatJson } from "@/mcp/core/output";
+import { readOnlyMessage } from "@/mcp/core/key-page";
 import { ToolError, type McpIdentity, type ToolDef } from "@/mcp/core/types";
 import { TOOLS } from "@/mcp/tools";
 
@@ -110,7 +111,7 @@ export async function callTool(identity: McpIdentity, name: string, rawArgs: unk
   const tool = TOOLS.find((t) => t.name === name);
   if (!tool) return textResult(`Unknown tool: ${name}. Call tools/list for the tools this key can use.`, true);
   if (tool.access === "write" && identity.scope !== "mcp_write") {
-    return textResult("This key is read-only (mcp_read). Mint an MCP read and write key to make changes.", true);
+    return textResult(readOnlyMessage(identity), true);
   }
   if (!rateLimit(`mcp:${identity.tokenId}`, 120) || !rateLimit("mcp:global", 3000)) {
     return textResult("Too many calls in the last minute. Wait a moment and try again.", true);

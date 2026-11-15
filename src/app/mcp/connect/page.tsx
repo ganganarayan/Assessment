@@ -59,8 +59,9 @@ export default async function McpConnectPage({ searchParams }: { searchParams: P
                 <Label htmlFor="key">Your MCP key</Label>
                 <Input id="key" name="key" type="password" autoComplete="off" required placeholder="mcp_..." />
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  Make one in Assess360 under <strong>API tokens</strong>: pick a <strong>Claude (MCP)</strong> scope
-                  and click Generate. The key decides which workspace Claude works in.
+                  Make one in Assess360 under <strong>API tokens</strong>: pick <strong>Claude (MCP), read and write</strong>
+                  and click Generate. A read only key lets Claude look but not build. The key decides which workspace
+                  Claude works in.
                 </p>
               </div>
               <Button type="submit">Connect</Button>

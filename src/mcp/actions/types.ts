@@ -8,7 +8,7 @@ export interface CatalogEntry {
   file: string;
   kind: "read" | "write";
   destructive: boolean;
-  params: { name: string; type: string; optional: boolean }[];
+  params: { name: string; type: string; optional: boolean; fields?: { name: string; type: string; optional: boolean; doc?: string }[] }[];
   returns: string;
   doc: string;
 }

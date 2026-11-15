@@ -274,7 +274,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ claudeAdminKey?: string; openAiAdminKey?: string; claudeApiKeyId?: string; openAiApiKeyId?: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "claudeAdminKey",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "openAiAdminKey",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "claudeApiKeyId",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "openAiApiKeyId",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -291,7 +313,34 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ enabled: boolean; provider: \"claude\" | \"openai\" | \"gemini\"; model?: string | undefined; guidance?: string | undefined; promptVersion?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "provider",
+            "type": "\"claude\" | \"openai\" | \"gemini\"",
+            "optional": false
+          },
+          {
+            "name": "model",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "guidance",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "promptVersion",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -697,7 +746,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; email: string; phone: string; message: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "message",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ status: number; body: string; }>>",
@@ -714,7 +785,24 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; email: string; phone: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ status: number; body: string; }>>",
@@ -765,7 +853,44 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; eventType: string; fields: string[]; startHour: number; endHour: number; delayMin: number; delayMax: number; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "eventType",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "fields",
+            "type": "string[]",
+            "optional": false
+          },
+          {
+            "name": "startHour",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "endHour",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "delayMin",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "delayMax",
+            "type": "number",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -782,7 +907,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ startHour: number; endHour: number; delayMin: number; delayMax: number; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "startHour",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "endHour",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "delayMin",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "delayMax",
+            "type": "number",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -904,7 +1051,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ appId: string; appSecret: string; configId: string; verifyToken: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "appId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "appSecret",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "configId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "verifyToken",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -1182,7 +1351,41 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "LegalSettingsView",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "entityName",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "address",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "contactEmail",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "governingLocation",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "gstin",
+            "type": "string",
+            "optional": false,
+            "doc": "GSTIN - a public tax identifier, so it is safe in public structured data."
+          },
+          {
+            "name": "foundedOn",
+            "type": "string",
+            "optional": false,
+            "doc": "ISO year-month, e.g. \"2024-02\". Month precision is all schema.org needs."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -1603,7 +1806,34 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; email: string; password: string; permission: \"VIEW\" | \"EDIT\"; tenantId?: string | null | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "password",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "permission",
+            "type": "\"VIEW\" | \"EDIT\"",
+            "optional": false
+          },
+          {
+            "name": "tenantId",
+            "type": "string | null | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -1881,7 +2111,341 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; slug: string; preResultFields: { options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]; leadCaptureMode: \"ALL_AT_ONCE\" | \"SPLIT\"; collectFirstName: boolean; firstNameRequired: boolean; collectLastName: boolean; lastNameRequired: boolean; collectEmail: boolean; emailRequired: boolean; collectMobile: boolean; mobileRequired: boolean; collectProfession: boolean; professionRequired: boolean; professionOptions: string[]; leadCaptureAfter: boolean; platformSignup: boolean; optinFields: { options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]; retakePolicy: \"DELAYED\" | \"NEVER\" | \"UNLIMITED\"; retakeDays: number; uniqueIdentifier: \"EMAIL\" | \"MOBILE\"; vslCountdownSeconds: number; questionDisplayMode: \"ALL\" | \"CATEGORY\" | \"SINGLE\"; autoAdvanceLastScreen: boolean; resultLinkShowsResult: boolean; engine: \"GENERIC\" | \"CLINIC_AUDIT\"; useAiStatement: boolean; nextStep: \"PAYMENT\" | \"DESTINATION\" | \"RESULTS\" | \"NO_RESULT\"; audienceGate: { label: string; mode: \"DROPDOWN\" | \"FREETEXT\"; placeholder: string; freeTextRequired: boolean; listId: string; roles: { id: string; label: string; target: string; }[]; };...",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "preResultFields",
+            "type": "{ options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]",
+            "optional": false
+          },
+          {
+            "name": "leadCaptureMode",
+            "type": "\"ALL_AT_ONCE\" | \"SPLIT\"",
+            "optional": false,
+            "doc": "ALL_AT_ONCE = one opt-in screen, positioned by leadCaptureAfter (every funnel built so far). SPLIT = name, gate, email, assessment, phone. Both read the same collect/*Required/*Label fields below, so switching modes loses no configuration."
+          },
+          {
+            "name": "collectFirstName",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "firstNameRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectLastName",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "lastNameRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectEmail",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "emailRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectMobile",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "mobileRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectProfession",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "professionRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "professionOptions",
+            "type": "string[]",
+            "optional": false
+          },
+          {
+            "name": "leadCaptureAfter",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "platformSignup",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "optinFields",
+            "type": "{ options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]",
+            "optional": false
+          },
+          {
+            "name": "retakePolicy",
+            "type": "\"DELAYED\" | \"NEVER\" | \"UNLIMITED\"",
+            "optional": false
+          },
+          {
+            "name": "retakeDays",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "uniqueIdentifier",
+            "type": "\"EMAIL\" | \"MOBILE\"",
+            "optional": false
+          },
+          {
+            "name": "vslCountdownSeconds",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "questionDisplayMode",
+            "type": "\"ALL\" | \"CATEGORY\" | \"SINGLE\"",
+            "optional": false
+          },
+          {
+            "name": "autoAdvanceLastScreen",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "resultLinkShowsResult",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "engine",
+            "type": "\"GENERIC\" | \"CLINIC_AUDIT\"",
+            "optional": false
+          },
+          {
+            "name": "useAiStatement",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "nextStep",
+            "type": "\"PAYMENT\" | \"DESTINATION\" | \"RESULTS\" | \"NO_RESULT\"",
+            "optional": false
+          },
+          {
+            "name": "audienceGate",
+            "type": "{ label: string; mode: \"DROPDOWN\" | \"FREETEXT\"; placeholder: string; freeTextRequired: boolean; listId: string; roles: { id: string; label: string; target: string; }[]; }",
+            "optional": false
+          },
+          {
+            "name": "fireMetaCapi",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "metaEvents",
+            "type": "{ registration: boolean; completion: boolean; gateDisqualified: boolean; abandoned: boolean; gateIncomplete: boolean; gatePassed: boolean; }",
+            "optional": false
+          },
+          {
+            "name": "eyebrow",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "subheadline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "qualifiedNote",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "buttonColor",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "buttonTextColor",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "heatmapCode",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "preResultHeading",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "preResultSubtext",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "coverImageUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "estimatedMinutes",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "thankYouMessage",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "firstNameLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "lastNameLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "emailLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "mobileLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "professionLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "professionPlaceholder",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "introNotice",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "startButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "trainingUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "targetUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "tokenTtlSeconds",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsContinueUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsContinueLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "aiPromptVersionId",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentReturnParam",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentHeadline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentAmount",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentEventName",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentIntroText",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "adAccountId",
+            "type": "string | undefined",
+            "optional": true,
+            "doc": "Which AD ACCOUNT this funnel reports to. \"\" = the workspace default. Validated in the action against the tenant's own accounts, never trusted from the client: an id from another workspace would point a funnel at someone else's pixel, and the only visible symptom would be a stranger's ad account fill..."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
@@ -1902,7 +2466,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete an assessment with its categories, questions, bands and submissions. Cannot be undone."
   },
   {
     "id": "assessment.assessment.duplicateAssessment",
@@ -1941,7 +2505,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta."
   },
   {
     "id": "assessment.assessment.updateAssessment",
@@ -1959,11 +2523,345 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; slug: string; preResultFields: { options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]; leadCaptureMode: \"ALL_AT_ONCE\" | \"SPLIT\"; collectFirstName: boolean; firstNameRequired: boolean; collectLastName: boolean; lastNameRequired: boolean; collectEmail: boolean; emailRequired: boolean; collectMobile: boolean; mobileRequired: boolean; collectProfession: boolean; professionRequired: boolean; professionOptions: string[]; leadCaptureAfter: boolean; platformSignup: boolean; optinFields: { options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]; retakePolicy: \"DELAYED\" | \"NEVER\" | \"UNLIMITED\"; retakeDays: number; uniqueIdentifier: \"EMAIL\" | \"MOBILE\"; vslCountdownSeconds: number; questionDisplayMode: \"ALL\" | \"CATEGORY\" | \"SINGLE\"; autoAdvanceLastScreen: boolean; resultLinkShowsResult: boolean; engine: \"GENERIC\" | \"CLINIC_AUDIT\"; useAiStatement: boolean; nextStep: \"PAYMENT\" | \"DESTINATION\" | \"RESULTS\" | \"NO_RESULT\"; audienceGate: { label: string; mode: \"DROPDOWN\" | \"FREETEXT\"; placeholder: string; freeTextRequired: boolean; listId: string; roles: { id: string; label: string; target: string; }[]; };...",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "preResultFields",
+            "type": "{ options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]",
+            "optional": false
+          },
+          {
+            "name": "leadCaptureMode",
+            "type": "\"ALL_AT_ONCE\" | \"SPLIT\"",
+            "optional": false,
+            "doc": "ALL_AT_ONCE = one opt-in screen, positioned by leadCaptureAfter (every funnel built so far). SPLIT = name, gate, email, assessment, phone. Both read the same collect/*Required/*Label fields below, so switching modes loses no configuration."
+          },
+          {
+            "name": "collectFirstName",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "firstNameRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectLastName",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "lastNameRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectEmail",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "emailRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectMobile",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "mobileRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "collectProfession",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "professionRequired",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "professionOptions",
+            "type": "string[]",
+            "optional": false
+          },
+          {
+            "name": "leadCaptureAfter",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "platformSignup",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "optinFields",
+            "type": "{ options: string[]; type: \"text\" | \"select\"; id: string; label: string; required: boolean; }[]",
+            "optional": false
+          },
+          {
+            "name": "retakePolicy",
+            "type": "\"DELAYED\" | \"NEVER\" | \"UNLIMITED\"",
+            "optional": false
+          },
+          {
+            "name": "retakeDays",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "uniqueIdentifier",
+            "type": "\"EMAIL\" | \"MOBILE\"",
+            "optional": false
+          },
+          {
+            "name": "vslCountdownSeconds",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "questionDisplayMode",
+            "type": "\"ALL\" | \"CATEGORY\" | \"SINGLE\"",
+            "optional": false
+          },
+          {
+            "name": "autoAdvanceLastScreen",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "resultLinkShowsResult",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "engine",
+            "type": "\"GENERIC\" | \"CLINIC_AUDIT\"",
+            "optional": false
+          },
+          {
+            "name": "useAiStatement",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "nextStep",
+            "type": "\"PAYMENT\" | \"DESTINATION\" | \"RESULTS\" | \"NO_RESULT\"",
+            "optional": false
+          },
+          {
+            "name": "audienceGate",
+            "type": "{ label: string; mode: \"DROPDOWN\" | \"FREETEXT\"; placeholder: string; freeTextRequired: boolean; listId: string; roles: { id: string; label: string; target: string; }[]; }",
+            "optional": false
+          },
+          {
+            "name": "fireMetaCapi",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "metaEvents",
+            "type": "{ registration: boolean; completion: boolean; gateDisqualified: boolean; abandoned: boolean; gateIncomplete: boolean; gatePassed: boolean; }",
+            "optional": false
+          },
+          {
+            "name": "eyebrow",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "subheadline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "qualifiedNote",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "buttonColor",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "buttonTextColor",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "heatmapCode",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "preResultHeading",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "preResultSubtext",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "coverImageUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "estimatedMinutes",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "thankYouMessage",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "firstNameLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "lastNameLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "emailLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "mobileLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "professionLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "professionPlaceholder",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "introNotice",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "startButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "trainingUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "targetUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "tokenTtlSeconds",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsContinueUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "resultsContinueLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "aiPromptVersionId",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentReturnParam",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentHeadline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentAmount",
+            "type": "number | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentEventName",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "paymentIntroText",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "adAccountId",
+            "type": "string | undefined",
+            "optional": true,
+            "doc": "Which AD ACCOUNT this funnel reports to. \"\" = the workspace default. Validated in the action against the tenant's own accounts, never trusted from the client: an id from another workspace would point a funnel at someone else's pixel, and the only visible symptom would be a stranger's ad account fill..."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Replace the WHOLE funnel configuration (every field in input; a field left out falls back to its default). Read the funnel with get_assessment first and send every field back. For landing copy only, use assessment.landing.saveLandingScreen instead."
   },
   {
     "id": "assessment.category-band.createCategoryBand",
@@ -1976,11 +2874,38 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ categoryId: string; level: \"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"; minScore: number; maxScore: number; suggestion?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "categoryId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "level",
+            "type": "\"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"",
+            "optional": false
+          },
+          {
+            "name": "minScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "maxScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "suggestion",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Add a score band to one category (LOW, MEDIUM, HIGH or CRITICAL) covering minScore to maxScore on that category's 0 to 100 score, with an optional suggestion shown on the result."
   },
   {
     "id": "assessment.category-band.deleteCategoryBand",
@@ -1997,7 +2922,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete one category band."
   },
   {
     "id": "assessment.category-band.importCategoryBandsFromText",
@@ -2042,11 +2967,38 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ categoryId: string; level: \"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"; minScore: number; maxScore: number; suggestion?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "categoryId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "level",
+            "type": "\"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"",
+            "optional": false
+          },
+          {
+            "name": "minScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "maxScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "suggestion",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Change one category band's level, range or suggestion."
   },
   {
     "id": "assessment.category.createCategory",
@@ -2064,11 +3016,28 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; page: number; description?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "page",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Add a scored category (section) to an assessment. page groups categories onto screens when questions show per category."
   },
   {
     "id": "assessment.category.deleteCategory",
@@ -2085,7 +3054,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete a category and every question in it."
   },
   {
     "id": "assessment.category.reorderCategories",
@@ -2125,11 +3094,28 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ name: string; page: number; description?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "page",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Rename a category or change its page and description."
   },
   {
     "id": "assessment.import-text.createAssessmentFromText",
@@ -2159,7 +3145,24 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "ImportBandsInput",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "assessmentId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "overall",
+            "type": "{ level: string; min: number; max: number; title: string; description: string; }[]",
+            "optional": false
+          },
+          {
+            "name": "categories",
+            "type": "{ categoryId: string; bands: { min: number; max: number; label: string; meaning: string; }[]; }[]",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -2183,6 +3186,87 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Parse + validate pasted text and return a preview (no writes). Only the assessment STRUCTURE can error here; band issues surface as warnings (they're edited + validated in step 2)."
   },
   {
+    "id": "assessment.landing.getLandingScreen",
+    "module": "@/features/assessment/actions/landing",
+    "fn": "getLandingScreen",
+    "file": "src/features/assessment/actions/landing.ts",
+    "kind": "read",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<LandingScreen>>",
+    "doc": "Read the landing screen copy of one assessment: headline, eyebrow, subheadline, intro, notice, start button label, cover image, estimated minutes."
+  },
+  {
+    "id": "assessment.landing.saveLandingScreen",
+    "module": "@/features/assessment/actions/landing",
+    "fn": "saveLandingScreen",
+    "file": "src/features/assessment/actions/landing.ts",
+    "kind": "write",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      },
+      {
+        "name": "input",
+        "type": "{ eyebrow?: string | undefined; subheadline?: string | undefined; coverImageUrl?: string | undefined; estimatedMinutes?: number | null | undefined; startButtonLabel?: string | undefined; headline?: string | undefined; intro?: string | undefined; notice?: string | undefined; }",
+        "optional": false,
+        "fields": [
+          {
+            "name": "eyebrow",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "subheadline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "coverImageUrl",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "estimatedMinutes",
+            "type": "number | null | undefined",
+            "optional": true
+          },
+          {
+            "name": "startButtonLabel",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "headline",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "intro",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "notice",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
+      }
+    ],
+    "returns": "Promise<ActionResult<{ id: string; }>>",
+    "doc": "Save the landing screen copy. Only the fields passed change; pass \"\" to clear one. Fields: headline, eyebrow, subheadline, intro, notice, startButtonLabel, coverImageUrl, estimatedMinutes."
+  },
+  {
     "id": "assessment.pages.addBlock",
     "module": "@/features/assessment/actions/pages",
     "fn": "addBlock",
@@ -2202,7 +3286,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores. Set its content with updateBlockConfig."
   },
   {
     "id": "assessment.pages.addPage",
@@ -2219,7 +3303,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Add an empty page to a result page document (docId from result-pages.docs). Returns every page."
   },
   {
     "id": "assessment.pages.deleteBlock",
@@ -2236,7 +3320,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Delete one block from a result page."
   },
   {
     "id": "assessment.pages.deletePage",
@@ -2253,7 +3337,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Delete one page of a result page document with its blocks."
   },
   {
     "id": "assessment.pages.getPublishedPages",
@@ -2287,7 +3371,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<PageResultData>>",
-    "doc": ""
+    "doc": "Read the scored result a result page would show for one submission."
   },
   {
     "id": "assessment.pages.listPages",
@@ -2304,7 +3388,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Read every page and block of a result page document."
   },
   {
     "id": "assessment.pages.loadPages",
@@ -2343,7 +3427,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Move a block up or down on its page."
   },
   {
     "id": "assessment.pages.movePage",
@@ -2421,7 +3505,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Replace one block's settings (its text, video url, button label and link, and so on). Read the block with listPages first to see its current config."
   },
   {
     "id": "assessment.pages.updatePageTitle",
@@ -2443,7 +3527,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": ""
+    "doc": "Rename one page of a result page document."
   },
   {
     "id": "assessment.qualification.ensureGateExit",
@@ -2500,7 +3584,44 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ heading: string; subtext: string; bodyHtml: string; buttonLabel: string; buttonUrl: string; fireDisqualifiedEvent: boolean; exits: { name: string; mode: \"PAGE\" | \"OPTIN\" | \"CONTINUE\"; heading: string; subtext: string; bodyHtml: string; buttonLabel: string; buttonUrl: string; fireDisqualifiedEvent: boolean; key: string; eventName: string; contentCategory: string; completionEventName: string; neverExclude: boolean; }[]; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "heading",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "subtext",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "bodyHtml",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "buttonLabel",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "buttonUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "fireDisqualifiedEvent",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "exits",
+            "type": "{ name: string; mode: \"PAGE\" | \"OPTIN\" | \"CONTINUE\"; heading: string; subtext: string; bodyHtml: string; buttonLabel: string; buttonUrl: string; fireDisqualifiedEvent: boolean; key: string; eventName: string; contentCategory: string; completionEventName: string; neverExclude: boolean; }[]",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -2522,7 +3643,30 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ enabled: boolean; questions: { options: { id: string; label: string; disqualifies: boolean; points: number; exitKey: string; }[]; type: \"text\" | \"choice\"; id: string; text: string; required: boolean; placeholder: string; }[]; bands: { enabled: boolean; passMin: number; reviewMin: number; belowExitKey: string; }; showResultOfGate: boolean; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "questions",
+            "type": "{ options: { id: string; label: string; disqualifies: boolean; points: number; exitKey: string; }[]; type: \"text\" | \"choice\"; id: string; text: string; required: boolean; placeholder: string; }[]",
+            "optional": false
+          },
+          {
+            "name": "bands",
+            "type": "{ enabled: boolean; passMin: number; reviewMin: number; belowExitKey: string; }",
+            "optional": false
+          },
+          {
+            "name": "showResultOfGate",
+            "type": "boolean",
+            "optional": false,
+            "doc": "Does the respondent ever see the GATE'S OWN result - its answers, its points, the band it put them in? OFF by default, and a clean break from the `showGateOnResult` flag it replaces. That one was a switch on the assessment's result page, where result routing already decides what a respondent is show..."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<QualificationSaveState>>",
@@ -2561,11 +3705,48 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ options: { value: number; label: string; isAssumption: boolean; diagnosisClause?: string | undefined; }[]; type: \"SINGLE_SELECT\" | \"FREE_TEXT\"; text: string; required: boolean; weight: number; scoringRole?: string | undefined; scoringUnit?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "options",
+            "type": "{ value: number; label: string; isAssumption: boolean; diagnosisClause?: string | undefined; }[]",
+            "optional": false
+          },
+          {
+            "name": "type",
+            "type": "\"SINGLE_SELECT\" | \"FREE_TEXT\"",
+            "optional": false
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "required",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "weight",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "scoringRole",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "scoringUnit",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Add a question to a category. SINGLE_SELECT takes options, each with value (the points that answer scores) and label. weight multiplies the question inside its category. FREE_TEXT takes no options and scores nothing."
   },
   {
     "id": "assessment.question.deleteQuestion",
@@ -2582,7 +3763,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete one question and its options."
   },
   {
     "id": "assessment.question.reorderQuestions",
@@ -2604,7 +3785,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Set the order of the questions in a category: ids in the new order."
   },
   {
     "id": "assessment.question.restoreOptions",
@@ -2639,11 +3820,48 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ options: { value: number; label: string; isAssumption: boolean; diagnosisClause?: string | undefined; }[]; type: \"SINGLE_SELECT\" | \"FREE_TEXT\"; text: string; required: boolean; weight: number; scoringRole?: string | undefined; scoringUnit?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "options",
+            "type": "{ value: number; label: string; isAssumption: boolean; diagnosisClause?: string | undefined; }[]",
+            "optional": false
+          },
+          {
+            "name": "type",
+            "type": "\"SINGLE_SELECT\" | \"FREE_TEXT\"",
+            "optional": false
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "required",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "weight",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "scoringRole",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "scoringUnit",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Replace a question's text, type, weight and full option list (send every option, with its points)."
   },
   {
     "id": "assessment.result-band.createResultBand",
@@ -2661,11 +3879,38 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; level: \"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"; minScore: number; maxScore: number; description?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "level",
+            "type": "\"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"",
+            "optional": false
+          },
+          {
+            "name": "minScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "maxScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Add an overall result band: title, level (LOW, MEDIUM, HIGH, CRITICAL), minScore to maxScore on the 0 to 100 total, and the description the respondent reads. Bands should cover 0 to 100 with no gap or overlap."
   },
   {
     "id": "assessment.result-band.deleteResultBand",
@@ -2682,7 +3927,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete one overall result band."
   },
   {
     "id": "assessment.result-band.importResultBandsFromText",
@@ -2722,11 +3967,38 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; level: \"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"; minScore: number; maxScore: number; description?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "level",
+            "type": "\"LOW\" | \"MEDIUM\" | \"HIGH\" | \"CRITICAL\"",
+            "optional": false
+          },
+          {
+            "name": "minScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "maxScore",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "description",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Change one overall result band's title, level, range or description."
   },
   {
     "id": "assessment.result-page.loadResultPage",
@@ -2778,7 +4050,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "data",
         "type": "ResultPageData",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "theme",
+            "type": "ThemeKey",
+            "optional": false
+          },
+          {
+            "name": "blocks",
+            "type": "ResultBlock[]",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -2817,7 +4101,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ routes: { optionId: string; action: \"NEXT\" | \"JUMP_TO_QUESTION\" | \"JUMP_TO_CATEGORY\" | \"SKIP_TO_END\"; targetQuestionId?: string | undefined; targetCategoryId?: string | undefined; }[]; defaultRoute?: { action: \"NEXT\" | \"JUMP_TO_QUESTION\" | \"JUMP_TO_CATEGORY\" | \"SKIP_TO_END\"; targetQuestionId?: string | undefined; targetCategoryId?: string | undefined; } | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "routes",
+            "type": "{ optionId: string; action: \"NEXT\" | \"JUMP_TO_QUESTION\" | \"JUMP_TO_CATEGORY\" | \"SKIP_TO_END\"; targetQuestionId?: string | undefined; targetCategoryId?: string | undefined; }[]",
+            "optional": false
+          },
+          {
+            "name": "defaultRoute",
+            "type": "{ action: \"NEXT\" | \"JUMP_TO_QUESTION\" | \"JUMP_TO_CATEGORY\" | \"SKIP_TO_END\"; targetQuestionId?: string | undefined; targetCategoryId?: string | undefined; } | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -3681,7 +4977,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "destructive": false,
     "params": [],
     "returns": "Promise<PurchaseSettingsForm>",
-    "doc": ""
+    "doc": "Read the workspace's Purchase event settings (event name and which payments report to Meta)."
   },
   {
     "id": "events.capi-test.resendPurchaseByEmail",
@@ -3694,7 +4990,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ paymentId: string; email: string; phone?: string; amountRupees: number; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "paymentId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "phone",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "amountRupees",
+            "type": "number",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<{ ok: boolean; status?: number; response?: string; error?: string; matched: boolean; eventId: string; }>",
@@ -3733,11 +5051,28 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "form",
         "type": "PurchaseSettingsForm",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "autoFireAmounts",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "highTicketThreshold",
+            "type": "number",
+            "optional": false
+          },
+          {
+            "name": "highTicketEventName",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Save the workspace's Purchase event settings."
   },
   {
     "id": "events.capi-test.testMetaCapi",
@@ -3792,7 +5127,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Set how many hours after starting an unfinished assessment counts as abandoned."
   },
   {
     "id": "events.webhooks.activateWebhook",
@@ -3809,7 +5144,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Turn a webhook on."
   },
   {
     "id": "events.webhooks.createWebhook",
@@ -3841,7 +5176,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
-    "doc": ""
+    "doc": "Add a webhook: eventType (which event), a name, the receiving url, and whether it starts active."
   },
   {
     "id": "events.webhooks.deactivateWebhook",
@@ -3858,7 +5193,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Turn a webhook off without deleting it."
   },
   {
     "id": "events.webhooks.editWebhook",
@@ -3902,7 +5237,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult>",
-    "doc": ""
+    "doc": "Delete a webhook and its delivery history."
   },
   {
     "id": "events.webhooks.retryEvent",
@@ -4067,7 +5402,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "config",
         "type": "NurtureConfig",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "email",
+            "type": "NurtureEmailConfig",
+            "optional": false
+          },
+          {
+            "name": "waba",
+            "type": "NurtureWabaConfig",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -4084,7 +5431,54 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ provider: string; apiKey: string; host: string; port: string; secure: boolean; user: string; pass: string; fromName: string; fromEmail: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "provider",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "apiKey",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "host",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "port",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "secure",
+            "type": "boolean",
+            "optional": false
+          },
+          {
+            "name": "user",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "pass",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "fromName",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "fromEmail",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -4101,7 +5495,34 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ phoneNumberId: string; businessAccountId: string; accessToken: string; apiVersion: string; defaultCountryCode: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "phoneNumberId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "businessAccountId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "accessToken",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "apiVersion",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "defaultCountryCode",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -4306,7 +5727,33 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "CtaOfferInput",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "href",
+            "type": "string",
+            "optional": false,
+            "doc": "A path on this app, or an absolute https URL. Blank = the constant."
+          },
+          {
+            "name": "trialLabel",
+            "type": "string",
+            "optional": false,
+            "doc": "Trial framing: nav, hero secondary, the priced tiers, the answer pages."
+          },
+          {
+            "name": "dfyLabel",
+            "type": "string",
+            "optional": false,
+            "doc": "Free-build framing: hero primary, metering, the offer blocks, the calculator."
+          },
+          {
+            "name": "force",
+            "type": "boolean | undefined",
+            "optional": true,
+            "doc": "Save a link the check could not confirm. Only offered when the page could not be REACHED (a timeout, DNS, a network error) - never for a page that answered 404, because that answer is the site telling us the link is wrong."
+          }
+        ]
       }
     ],
     "returns": "Promise<CtaSaveResult>",
@@ -4412,7 +5859,21 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "LandingVideoInput",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "hero",
+            "type": "string",
+            "optional": false,
+            "doc": "Hero video; blank clears it and the hero image returns."
+          },
+          {
+            "name": "tiles",
+            "type": "Record<string, string>",
+            "optional": false,
+            "doc": "Capability title -> embed. A blank value removes that tile's video."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -4595,7 +6056,39 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "draft",
         "type": "LimitsDraft",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "responsesPerMonth",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "maxAssessments",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "seats",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "adAccounts",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "agencyTenants",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "features",
+            "type": "Record<\"pdfReports\" | \"webhooks\" | \"leadExport\" | \"customDomain\" | \"brandingRemoved\" | \"analyticsTracking\" | \"staffRoles\" | \"apiAccess\" | \"aiReports\" | \"prioritySupport\" | \"qualificationGate\" | \"conditionalRouting\" | \"capi\" | \"heatmap\" | \"manualReview\" | \"gateScoreBands\" | \"conditionalExit\" | \"bulkImport\", FeatureChoice>",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ summary: string; }>>",
@@ -4760,7 +6253,35 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "StorageSettingsInput",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "accountId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "accessKeyId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "secretAccessKey",
+            "type": "string",
+            "optional": false,
+            "doc": "Blank leaves the stored secret untouched - that is how you edit the other fields without having to paste the key again."
+          },
+          {
+            "name": "bucketName",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "publicUrl",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -4964,7 +6485,24 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "meta",
         "type": "{ category?: string; summary?: string; order?: number; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "category",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "summary",
+            "type": "string | undefined",
+            "optional": true
+          },
+          {
+            "name": "order",
+            "type": "number | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -5025,7 +6563,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ requestId: string; body: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "requestId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "body",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -5076,7 +6626,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ requestId: string; body: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "requestId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "body",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -5160,7 +6722,29 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ support: string; onboarding: string; inboxEmail: string; webhookUrl: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "support",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "onboarding",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "inboxEmail",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "webhookUrl",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ forwarded: number; }>>",
@@ -5194,7 +6778,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ requestId: string; body: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "requestId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "body",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -5294,7 +6890,35 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ destination: \"private\" | \"contribute\"; title: string; category: string; summary: string; aiInstructions: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "destination",
+            "type": "\"private\" | \"contribute\"",
+            "optional": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "category",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "summary",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "aiInstructions",
+            "type": "string",
+            "optional": false,
+            "doc": "Suggested result-statement instructions to carry with it."
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<SaveAsTemplateResult>>",
@@ -5372,7 +6996,34 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; category: string; summary: string; aiInstructions: string; publish: boolean; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "category",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "summary",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "aiInstructions",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "publish",
+            "type": "boolean",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ templateId: string; published: boolean; }>>",
@@ -5527,7 +7178,24 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ title: string; category: string; summary: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "title",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "category",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "summary",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -5867,7 +7535,68 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ label: string; bucketName: string; publicBaseUrl: string; storageClass: \"STANDARD\" | \"INFREQUENT_ACCESS\"; accountId: string; accessKeyId: string; secretAccessKey: string; copyCredsFrom: string; createInR2: boolean; locationHint: \"\" | \"apac\" | \"wnam\" | \"enam\" | \"weur\" | \"eeur\" | \"oc\"; id?: string | undefined; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "label",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "bucketName",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "publicBaseUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "storageClass",
+            "type": "\"STANDARD\" | \"INFREQUENT_ACCESS\"",
+            "optional": false
+          },
+          {
+            "name": "accountId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "accessKeyId",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "secretAccessKey",
+            "type": "string",
+            "optional": false,
+            "doc": "Blank on an edit leaves the stored secret alone."
+          },
+          {
+            "name": "copyCredsFrom",
+            "type": "string",
+            "optional": false,
+            "doc": "Another bucket in this vault whose stored secret to reuse. An account-scoped R2 token works for every bucket in the account, and Cloudflare shows a secret once, so re-pasting it is asking for something the operator may not still have."
+          },
+          {
+            "name": "createInR2",
+            "type": "boolean",
+            "optional": false,
+            "doc": "True = also create the bucket in R2. False = it exists already, just register it."
+          },
+          {
+            "name": "locationHint",
+            "type": "\"\" | \"apac\" | \"wnam\" | \"enam\" | \"weur\" | \"eeur\" | \"oc\"",
+            "optional": false,
+            "doc": "R2 location hint, used ONLY when creating. Fixed forever at creation, and the dominant factor in upload speed, so it is asked for rather than defaulted."
+          },
+          {
+            "name": "id",
+            "type": "string | undefined",
+            "optional": true
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult<{ id: string; }>>",
@@ -6379,7 +8108,44 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "Omit<BrandLegal, \"isPlatform\">",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "privacyUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "termsUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "replyToEmail",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "reportDisclaimer",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "logoUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "faviconUrl",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "shareImageUrl",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -6679,7 +8445,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "{ timeZone: string; currency: string; }",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "timeZone",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "currency",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -6763,7 +8541,19 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       {
         "name": "input",
         "type": "ThemeColors",
-        "optional": false
+        "optional": false,
+        "fields": [
+          {
+            "name": "primaryColor",
+            "type": "string",
+            "optional": false
+          },
+          {
+            "name": "secondaryColor",
+            "type": "string",
+            "optional": false
+          }
+        ]
       }
     ],
     "returns": "Promise<ActionResult>",
@@ -7026,6 +8816,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/assessment/actions/category": () => import("@/features/assessment/actions/category") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/category-band": () => import("@/features/assessment/actions/category-band") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/import-text": () => import("@/features/assessment/actions/import-text") as Promise<Record<string, unknown>>,
+  "@/features/assessment/actions/landing": () => import("@/features/assessment/actions/landing") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/pages": () => import("@/features/assessment/actions/pages") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/qualification": () => import("@/features/assessment/actions/qualification") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/question": () => import("@/features/assessment/actions/question") as Promise<Record<string, unknown>>,

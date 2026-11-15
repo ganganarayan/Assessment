@@ -28,7 +28,11 @@ export function ApiTokensManager({
     ? API_TOKEN_SCOPES.filter((s) => allowedScopes.includes(s.value))
     : API_TOKEN_SCOPES;
   const [tokens, setTokens] = useState<ApiTokenRow[]>(initialTokens);
-  const [scope, setScope] = useState<string>(scopes[0]?.value ?? API_TOKEN_SCOPES[0].value);
+  // Read and write is the default whenever it is offered: "connect to Claude" exists to
+  // let Claude build, and a read-only key leaves it unable to change anything.
+  const [scope, setScope] = useState<string>(
+    scopes.find((s) => s.value === "mcp_write")?.value ?? scopes[0]?.value ?? API_TOKEN_SCOPES[0].value,
+  );
   const [label, setLabel] = useState("");
   const [minted, setMinted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +134,15 @@ export function ApiTokensManager({
           </div>
           <Button disabled={pending} onClick={mint}>Generate</Button>
         </div>
+        {scope === "mcp_write" ? (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            <AccessBadge scope={scope} /> Claude can read and make changes. Every change is shown to you first and runs only after you say yes.
+          </p>
+        ) : scope === "mcp_read" ? (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            <AccessBadge scope={scope} /> Claude can only look. It cannot build or change anything with this key.
+          </p>
+        ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         {minted ? (
           <div className="flex flex-col gap-2 rounded-md border border-green-600/40 bg-green-600/10 p-3">
@@ -162,7 +175,12 @@ export function ApiTokensManager({
               tokens.map((t) => (
                 <tr key={t.id}>
                   <td className="px-3 py-2 font-mono text-xs">{t.prefix}…</td>
-                  <td className="px-3 py-2">{t.scope}</td>
+                  <td className="px-3 py-2">
+                    <span className="flex flex-wrap items-center gap-2">
+                      {t.scope}
+                      <AccessBadge scope={t.scope} />
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-[var(--muted-foreground)]">{t.label ?? "-"}</td>
                   <td className="px-3 py-2 text-[var(--muted-foreground)]">
                     {t.lastUsedAt ? formatIST(t.lastUsedAt) : "-"}
@@ -195,4 +213,23 @@ export function ApiTokensManager({
       </div>
     </div>
   );
+}
+
+/** Which access a Claude (MCP) key has, readable at a glance. Other scopes show nothing. */
+function AccessBadge({ scope }: { scope: string }) {
+  if (scope === "mcp_write") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-green-600/40 bg-green-600/10 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:text-green-400">
+        Read and write
+      </span>
+    );
+  }
+  if (scope === "mcp_read") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+        Read only
+      </span>
+    );
+  }
+  return null;
 }

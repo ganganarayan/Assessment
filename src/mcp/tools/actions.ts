@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { ACTION_CATALOG, ACTION_LOADERS, EXCLUDED_ACTIONS } from "@/mcp/actions/catalog.generated";
 import type { CatalogEntry } from "@/mcp/actions/types";
+import { readOnlyMessage } from "@/mcp/core/key-page";
 import { ToolError, isActionResult, type ToolContext, type ToolDef } from "@/mcp/core/types";
 
 /**
@@ -25,6 +26,17 @@ function find(id: string): CatalogEntry {
 
 function signature(e: CatalogEntry): string {
   return `${e.fn}(${e.params.map((p) => `${p.name}${p.optional ? "?" : ""}: ${p.type}`).join(", ")}): ${e.returns}`;
+}
+
+const SHORT_TYPE = 160;
+/** The listing's one-line form: long parameter types are cut, describe_app_action has them whole. */
+function shortSignature(e: CatalogEntry): { text: string; cut: boolean } {
+  let cut = false;
+  const params = e.params.map((p) => {
+    const t = p.type.length > SHORT_TYPE ? ((cut = true), `${p.type.slice(0, SHORT_TYPE)}...`) : p.type;
+    return `${p.name}${p.optional ? "?" : ""}: ${t}`;
+  });
+  return { text: `${e.fn}(${params.join(", ")}): ${e.returns.length > SHORT_TYPE ? `${e.returns.slice(0, SHORT_TYPE)}...` : e.returns}`, cut };
 }
 
 function checkArity(e: CatalogEntry, args: unknown[]) {
@@ -73,12 +85,41 @@ const listAppActions: ToolDef = {
         id: e.id,
         kind: e.kind,
         destructive: e.destructive,
-        signature: signature(e),
+        signature: shortSignature(e).text,
+        full_schema: shortSignature(e).cut ? "cut here: call describe_app_action for every field" : undefined,
         description: e.doc || null,
       })),
       more: Math.max(0, hits.length - input.limit),
       areas: input.search || input.area ? undefined : areas,
       note: "Pass args to run_app_action as a JSON array in parameter order. Ids such as assessment ids come from the typed tools (list_assessments, get_assessment).",
+    };
+  },
+};
+
+const describeAppAction: ToolDef = {
+  name: "describe_app_action",
+  title: "Describe one app action",
+  description:
+    "The full, untruncated argument list of one action from list_app_actions: each parameter, and for an object parameter every field with its type, whether it is optional, and its note. Call this before run_app_action whenever a signature in the listing is cut.",
+  access: "read",
+  input: z.object({ action: z.string().trim().min(1).max(120).describe("An id from list_app_actions.") }),
+  run: async (_ctx: ToolContext, input: { action: string }) => {
+    const e = find(input.action);
+    return {
+      id: e.id,
+      kind: e.kind,
+      destructive: e.destructive,
+      description: e.doc || null,
+      run_with: e.kind === "read" ? "run_app_action_read (or run_app_action)" : "run_app_action: preview first, then confirm=true with the preview_token",
+      params: e.params.map((p, i) => ({
+        position: i,
+        name: p.name,
+        optional: p.optional,
+        type: p.fields ? undefined : p.type,
+        fields: p.fields,
+      })),
+      returns: e.returns,
+      note: "Pass args as a JSON array in position order. An object parameter is one JSON object holding the fields listed.",
     };
   },
 };
@@ -95,9 +136,12 @@ const runAppActionRead: ToolDef = {
   description: "Run one READ action from list_app_actions (kind=read). Nothing changes. For writes use run_app_action.",
   access: "read",
   input: runInput,
-  run: async (_ctx: ToolContext, input: { action: string; args: unknown[] }) => {
+  run: async (ctx: ToolContext, input: { action: string; args: unknown[] }) => {
     const e = find(input.action);
-    if (e.kind !== "read") throw new ToolError(`${e.id} changes data. Use run_app_action, which previews first.`);
+    if (e.kind !== "read") {
+      if (ctx.identity.scope !== "mcp_write") throw new ToolError(`${e.id} changes data. ${readOnlyMessage(ctx.identity)}`);
+      throw new ToolError(`${e.id} changes data. Use run_app_action, which previews first.`);
+    }
     checkArity(e, input.args);
     return { action: e.id, result: await invoke(e, input.args) };
   },
@@ -132,4 +176,4 @@ const runAppAction: ToolDef = {
   },
 };
 
-export const ACTION_TOOLS: ToolDef[] = [listAppActions, runAppActionRead, runAppAction];
+export const ACTION_TOOLS: ToolDef[] = [listAppActions, describeAppAction, runAppActionRead, runAppAction];

@@ -64,6 +64,54 @@ const EXCLUDED_ACTIONS: Record<string, string> = {
   "vault.abortVaultMultipart": "file upload",
 };
 
+/**
+ * Descriptions for actions whose source has no doc comment, so Claude is never left
+ * guessing on the ad-ready path (connect, template, gate, landing, questions, bands,
+ * result page, pixel, publish). A source doc comment always wins; an id here that no
+ * longer exists fails the generator, so this list cannot rot silently.
+ */
+const ACTION_DOCS: Record<string, string> = {
+  "assessment.assessment.setAssessmentStatus":
+    "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta.",
+  "assessment.assessment.updateAssessment":
+    "Replace the WHOLE funnel configuration (every field in input; a field left out falls back to its default). Read the funnel with get_assessment first and send every field back. For landing copy only, use assessment.landing.saveLandingScreen instead.",
+  "assessment.assessment.deleteAssessment": "Delete an assessment with its categories, questions, bands and submissions. Cannot be undone.",
+  "assessment.category.createCategory": "Add a scored category (section) to an assessment. page groups categories onto screens when questions show per category.",
+  "assessment.category.updateCategory": "Rename a category or change its page and description.",
+  "assessment.category.deleteCategory": "Delete a category and every question in it.",
+  "assessment.category-band.createCategoryBand":
+    "Add a score band to one category (LOW, MEDIUM, HIGH or CRITICAL) covering minScore to maxScore on that category's 0 to 100 score, with an optional suggestion shown on the result.",
+  "assessment.category-band.updateCategoryBand": "Change one category band's level, range or suggestion.",
+  "assessment.category-band.deleteCategoryBand": "Delete one category band.",
+  "assessment.question.createQuestion":
+    "Add a question to a category. SINGLE_SELECT takes options, each with value (the points that answer scores) and label. weight multiplies the question inside its category. FREE_TEXT takes no options and scores nothing.",
+  "assessment.question.updateQuestion": "Replace a question's text, type, weight and full option list (send every option, with its points).",
+  "assessment.question.deleteQuestion": "Delete one question and its options.",
+  "assessment.question.reorderQuestions": "Set the order of the questions in a category: ids in the new order.",
+  "assessment.result-band.createResultBand":
+    "Add an overall result band: title, level (LOW, MEDIUM, HIGH, CRITICAL), minScore to maxScore on the 0 to 100 total, and the description the respondent reads. Bands should cover 0 to 100 with no gap or overlap.",
+  "assessment.result-band.updateResultBand": "Change one overall result band's title, level, range or description.",
+  "assessment.result-band.deleteResultBand": "Delete one overall result band.",
+  "assessment.pages.addPage": "Add an empty page to a result page document (docId from result-pages.docs). Returns every page.",
+  "assessment.pages.deletePage": "Delete one page of a result page document with its blocks.",
+  "assessment.pages.listPages": "Read every page and block of a result page document.",
+  "assessment.pages.getResultForPages": "Read the scored result a result page would show for one submission.",
+  "assessment.pages.addBlock":
+    "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores. Set its content with updateBlockConfig.",
+  "assessment.pages.deleteBlock": "Delete one block from a result page.",
+  "assessment.pages.moveBlock": "Move a block up or down on its page.",
+  "assessment.pages.updateBlockConfig":
+    "Replace one block's settings (its text, video url, button label and link, and so on). Read the block with listPages first to see its current config.",
+  "assessment.pages.updatePageTitle": "Rename one page of a result page document.",
+  "events.capi-test.getPurchaseSettingsForm": "Read the workspace's Purchase event settings (event name and which payments report to Meta).",
+  "events.capi-test.savePurchaseSettings": "Save the workspace's Purchase event settings.",
+  "events.settings.updateAbandonedHours": "Set how many hours after starting an unfinished assessment counts as abandoned.",
+  "events.webhooks.createWebhook": "Add a webhook: eventType (which event), a name, the receiving url, and whether it starts active.",
+  "events.webhooks.activateWebhook": "Turn a webhook on.",
+  "events.webhooks.deactivateWebhook": "Turn a webhook off without deleting it.",
+  "events.webhooks.purgeWebhook": "Delete a webhook and its delivery history.",
+};
+
 const READ_PREFIX = /^(get|list|load|read|preview|count|has|search|lookup|find)[A-Z]/;
 const READ_NAMES = new Set(["aiRerunCount", "agencyTenantExtraPrice", "lifecycleSummary", "fetchWabaTemplates", "vaultMultipartThreshold"]);
 const DESTRUCTIVE =
@@ -101,10 +149,19 @@ const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(configPath, ts.sy
 const program = ts.createProgram(files, { ...parsed.options, noEmit: true, incremental: false });
 const checker = program.getTypeChecker();
 
+interface Field {
+  name: string;
+  type: string;
+  optional: boolean;
+  doc?: string;
+}
 interface Param {
   name: string;
   type: string;
   optional: boolean;
+  /** One entry per property when the parameter is an object, so a long input type
+   *  (createAssessment, updateAssessment) stays fully readable past MAX_TYPE. */
+  fields?: Field[];
 }
 interface Entry {
   id: string;
@@ -123,6 +180,26 @@ const typeText = (t: ts.Type, at: ts.Node) => {
   const s = checker.typeToString(t, at, ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseFullyQualifiedType);
   const clean = s.replace(/import\("[^"]+"\)\./g, "");
   return clean.length > MAX_TYPE ? `${clean.slice(0, MAX_TYPE)}...` : clean;
+};
+
+const MAX_FIELD_TYPE = 600;
+const fieldsOf = (t: ts.Type, at: ts.Node): Field[] | undefined => {
+  const base = checker.getNonNullableType(t);
+  if (!(base.flags & ts.TypeFlags.Object) || checker.isArrayType(base) || base.getCallSignatures().length) return undefined;
+  const props = checker.getPropertiesOfType(base);
+  if (props.length === 0) return undefined;
+  return props.slice(0, 120).map((prop) => {
+    const s = checker
+      .typeToString(checker.getTypeOfSymbolAtLocation(prop, at), at, ts.TypeFormatFlags.NoTruncation)
+      .replace(/import\("[^"]+"\)\./g, "");
+    const doc = ts.displayPartsToString(prop.getDocumentationComment(checker)).replace(/\s+/g, " ").trim();
+    return {
+      name: prop.getName(),
+      type: s.length > MAX_FIELD_TYPE ? `${s.slice(0, MAX_FIELD_TYPE)}...` : s,
+      optional: !!(prop.flags & ts.SymbolFlags.Optional),
+      ...(doc ? { doc: doc.length > 300 ? `${doc.slice(0, 300)}...` : doc } : {}),
+    };
+  });
 };
 
 const entries: Entry[] = [];
@@ -146,18 +223,24 @@ for (const abs of files) {
     const moduleReason = Object.entries(EXCLUDED_MODULES).find(([m]) => area === m || area.startsWith(`${m}.`))?.[1];
     const reason = moduleReason ?? EXCLUDED_ACTIONS[id];
     const sig = checker.getSignatureFromDeclaration(node);
-    const params: Param[] = node.parameters.map((p) => ({
-      name: p.name.getText(sf),
-      type: typeText(checker.getTypeAtLocation(p), p),
-      optional: !!p.questionToken || !!p.initializer,
-    }));
+    const params: Param[] = node.parameters.map((p) => {
+      const t = checker.getTypeAtLocation(p);
+      const fields = fieldsOf(t, p);
+      return {
+        name: p.name.getText(sf),
+        type: typeText(t, p),
+        optional: !!p.questionToken || !!p.initializer,
+        ...(fields ? { fields } : {}),
+      };
+    });
     const takesFile = params.some((p) => /\b(FormData|File|Blob)\b/.test(p.type));
     if (reason || takesFile) {
       excluded.push({ id, reason: reason ?? "takes a file or FormData" });
       return;
     }
     const sym = checker.getSymbolAtLocation(node.name);
-    const doc = sym ? ts.displayPartsToString(sym.getDocumentationComment(checker)).replace(/\s+/g, " ").trim() : "";
+    const doc =
+      (sym ? ts.displayPartsToString(sym.getDocumentationComment(checker)).replace(/\s+/g, " ").trim() : "") || ACTION_DOCS[id] || "";
     const kind = READ_PREFIX.test(fn) || READ_NAMES.has(fn) ? "read" : "write";
     modules.set(rel, importPath);
     entries.push({
@@ -172,6 +255,12 @@ for (const abs of files) {
       doc: doc.length > 500 ? `${doc.slice(0, 500)}...` : doc,
     });
   });
+}
+
+const staleDocs = Object.keys(ACTION_DOCS).filter((id) => !entries.some((e) => e.id === id));
+if (staleDocs.length) {
+  console.error(`ACTION_DOCS names actions that no longer exist: ${staleDocs.join(", ")}`);
+  process.exit(1);
 }
 
 entries.sort((a, b) => a.id.localeCompare(b.id));

@@ -3,6 +3,7 @@ import { authenticateMcp } from "@/mcp/core/auth";
 import { gateway } from "@/mcp/gateway";
 import type { McpIdentity } from "@/mcp/core/types";
 import { CORS_HEADERS, originOf, resourceMetadataUrl } from "@/mcp/oauth/core";
+import { AD_READY_INSTRUCTION, AD_READY_PROMPT } from "@/mcp/core/playbook";
 
 /**
  * MCP over Streamable HTTP, stateless, JSON responses (no SSE, no session ids).
@@ -19,8 +20,9 @@ const LATEST = SUPPORTED_PROTOCOL_VERSIONS[0];
 const SERVER_INSTRUCTIONS = [
   "Assess360 lead qualification app. Every call acts as the key's own login, inside one workspace.",
   "Start with connection_status, then list_workspaces if you need another workspace (pass its id as workspace_id).",
+  AD_READY_INSTRUCTION,
   "Typed tools cover stats, leads, funnels (with every gate and assessment question) and templates.",
-  "Anything else the app can do is reachable through list_app_actions and run_app_action.",
+  "Anything else the app can do is reachable through list_app_actions and run_app_action; when a listed signature is cut, describe_app_action returns every field.",
   "Every write previews first: call without confirm, show the user what will happen, then call again with confirm=true and the preview_token.",
   "Dates are DD-MM-YYYY HH:MM in IST. Date inputs are YYYY-MM-DD and mean IST days.",
   "This server is also the gateway to the user's other apps: tools named with a prefix (router_, vidapulse_, content_) belong to those apps and act as the same login there.",
@@ -63,7 +65,7 @@ async function handleOne(identity: McpIdentity, msg: unknown, serverVersion: str
         id: msg.id ?? null,
         result: {
           protocolVersion,
-          capabilities: { tools: { listChanged: false } },
+          capabilities: { tools: { listChanged: false }, prompts: { listChanged: false } },
           serverInfo: { name: "assess360", title: "Assess360", version: serverVersion },
           instructions: SERVER_INSTRUCTIONS,
         },
@@ -73,6 +75,27 @@ async function handleOne(identity: McpIdentity, msg: unknown, serverVersion: str
       return isNotification ? null : { jsonrpc: "2.0", id: msg.id ?? null, result: {} };
     case "tools/list":
       return { jsonrpc: "2.0", id: msg.id ?? null, result: { tools: await gateway.listTools(identity) } };
+    case "prompts/list":
+      return {
+        jsonrpc: "2.0",
+        id: msg.id ?? null,
+        result: {
+          prompts: [
+            { name: AD_READY_PROMPT.name, title: AD_READY_PROMPT.title, description: AD_READY_PROMPT.description, arguments: AD_READY_PROMPT.arguments },
+          ],
+        },
+      };
+    case "prompts/get": {
+      if (params.name !== AD_READY_PROMPT.name) return err(msg.id, -32602, `Unknown prompt: ${String(params.name)}`);
+      return {
+        jsonrpc: "2.0",
+        id: msg.id ?? null,
+        result: {
+          description: AD_READY_PROMPT.description,
+          messages: [{ role: "user", content: { type: "text", text: AD_READY_PROMPT.text } }],
+        },
+      };
+    }
     case "tools/call": {
       const name = typeof params.name === "string" ? params.name : "";
       const result = await gateway.callTool(identity, name, params.arguments);
