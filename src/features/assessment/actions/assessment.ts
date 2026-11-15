@@ -17,6 +17,8 @@ import { cloneDoc, bindDoc } from "@/features/result-pages/actions/docs";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+import { adLinkFor } from "@/lib/meta/url-parameters";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 
 /** Verify an assessment is owned by the caller's scope (tenant, or any for super-global).
  *  Returns false if it doesn't exist or belongs to a different tenant. */
@@ -432,7 +434,7 @@ export async function deleteAssessment(id: string): Promise<ActionResult> {
 export async function setAssessmentStatus(
   id: string,
   publish: boolean,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ ad_link: { website_url: string; url_parameters: string; full_url: string } }>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -462,12 +464,13 @@ export async function setAssessmentStatus(
     const blocked = await metaPublishBlock(scope.tenantId, target?.adAccountId ?? null);
     if (blocked) return { ok: false, error: blocked };
   }
-  await prisma.assessment.update({
+  const saved = await prisma.assessment.update({
     where: { id },
     data: {
       status: publish ? "PUBLISHED" : "DRAFT",
       publishedAt: publish ? new Date() : null,
     },
+    select: { slug: true, tenantId: true },
   });
   // 🟡 Publishing their first funnel is the step the platform nurtures a workspace
   // toward, so it starts a TENANT workflow about them. Publish only: unpublishing is
@@ -483,7 +486,10 @@ export async function setAssessmentStatus(
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
   revalidatePath("/w/assessments");
-  return { ok: true };
+  // Publishing hands back the ad link: the public URL and the text for the Meta ad's URL
+  // parameters field, so per-ad stats work from the first click.
+  if (!publish) return { ok: true };
+  return { ok: true, data: { ad_link: adLinkFor(await publicOriginFor(saved.tenantId), saved.slug) } };
 }
 
 /**

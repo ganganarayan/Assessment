@@ -10,10 +10,8 @@ import "server-only";
  * Ads are never launched from here. "Ad ready" ends at the URL.
  */
 
-/** What Meta's "URL parameters" field should hold. utm_content carries the ad id, which is
- *  what get_funnel_stats reads per ad by default (ad_param = utm_content). */
-export const META_URL_PARAMETERS =
-  "utm_source={{site_source_name}}&utm_medium={{placement}}&utm_campaign={{campaign.name}}&utm_term={{adset.id}}&utm_content={{ad.id}}";
+import { META_URL_PARAMETERS } from "@/lib/meta/url-parameters";
+export { META_URL_PARAMETERS };
 
 export const AD_READY_PROMPT_NAME = "ad_ready_setup";
 
@@ -56,15 +54,15 @@ const STEPS = [
   "",
   "Step 9. Pixel and CAPI. Save the ad account (admin.ad-account.createAdAccount), make sure this assessment reports to it, save the test event code on it (admin.ad-account.saveTestEventCode), then fire a test with events.capi-test.testMetaCapi using the test event code. Do not go on until Meta accepted it. With the code saved, test runs send their server events to Events Manager, Test events, and never to production.",
   "",
-  "Step 10. Publish with assessment.assessment.setAssessmentStatus(id, true).",
+  "Step 10. Publish with assessment.assessment.setAssessmentStatus(id, true). The result carries ad_link.",
   "",
   "Step 11. Owner test runs, through the test link only (test_link on get_assessment, or assessment.test-runs.getTestLink; it works on a phone without signing in): once turned away, once waitlisted (if configured), once passing the gate and abandoning, once completing. After each run, read back what fired with events.log.listRunEvents(assessmentId, 30, true): every run should show its path, the browser events as would_fire (the pixel is off in test runs) and the server events as test_sent. Explain each run to the owner in plain words.",
   "",
   "Before a fresh round of testing, assessment.test-runs.clearTestRuns removes earlier test runs. get_funnel_stats reports test runs apart from real numbers; real numbers must not move.",
   "",
-  "Step 12. Check readiness: gate questions and exits, landing copy, bands 0 to 100, result page published and bound, ad account and accepted CAPI test, published, one test run per path. If anything fails, tell the owner exactly which and fix it.",
+  "Step 12. Call onboarding.adReadiness(assessmentId). It checks gate and exits, landing copy, questions, bands 0 to 100, result page, pixel and CAPI, test event code, Meta accepting a test run's server event, the browser pixel path, matching event ids, published, and one test run per path. Do not hand over the URL until ready is true: read each failing line to the owner in plain words, fix it, and run the check again.",
   "",
-  `Step 13. Hand over the public URL and tell them to paste this into the Meta ad's URL parameters field, exactly: ${META_URL_PARAMETERS}`,
+  `Step 13. Hand over ad_link from adReadiness: website_url goes in the ad's Website URL field, and url_parameters goes in the URL parameters field, exactly: ${META_URL_PARAMETERS}`,
 ].join("\n");
 
 export const AD_READY_PROMPT = {

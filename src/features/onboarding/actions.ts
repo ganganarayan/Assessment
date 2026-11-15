@@ -12,6 +12,20 @@ import { getOnboardingView, type OnboardingView } from "@/features/onboarding/da
 import { persistStep } from "@/features/onboarding/save";
 import { STEP_BY_KEY, schemaFor } from "@/features/onboarding/steps";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { tenantScope } from "@/lib/tenant/acting";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
+import { adLinkFor } from "@/lib/meta/url-parameters";
+import {
+  qualificationSchema,
+  EMPTY_QUALIFICATION,
+  isQualificationActive,
+  readExits,
+  resolveExit,
+  optionOutcome,
+  isWaitlistExitKey,
+} from "@/features/assessment/schemas";
+import { evaluateAdReadiness, type ReadinessLine } from "@/features/onboarding/ad-readiness";
 
 /**
  * The guided setup, one answer at a time.
@@ -210,4 +224,138 @@ export async function acknowledgeAdLink(): Promise<{ resume: boolean }> {
     // here, the dialog closes.
     return { resume: false };
   }
+}
+
+/**
+ * Is this funnel ready for ad spend? One line per check (gate and exits, landing copy,
+ * scored questions, bands 0 to 100, result page, pixel and CAPI, test event code, Meta
+ * accepting a test run's server event, the browser pixel path, matching event ids,
+ * published, and one test run per path), each pass or fail with the reason, plus `ready`
+ * (every required line passes). Also returns the ad link: the public URL and the exact
+ * text for the Meta ad's URL parameters field.
+ */
+export async function adReadiness(assessmentId: string): Promise<
+  ActionResult<{
+    assessment: string;
+    ready: boolean;
+    failing: string[];
+    lines: ReadinessLine[];
+    ad_link: { website_url: string; url_parameters: string; full_url: string };
+  }>
+> {
+  const scope = await resolveActingScope();
+  const a = await prisma.assessment.findFirst({
+    where: { id: assessmentId, ...tenantScope(scope) },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      status: true,
+      tenantId: true,
+      subheadline: true,
+      description: true,
+      startButtonLabel: true,
+      qualification: true,
+      disqualifiedContent: true,
+      fireMetaCapi: true,
+      adAccountId: true,
+      resultsDocId: true,
+      vslDocId: true,
+      resultPagePublished: true,
+      resultsDoc: { select: { publishedAt: true } },
+      vslDoc: { select: { publishedAt: true } },
+      categories: { select: { name: true, questions: { select: { text: true, type: true, _count: { select: { options: true } } } } } },
+      resultBands: { select: { minScore: true, maxScore: true } },
+    },
+  });
+  if (!a) return { ok: false, error: "Not found." };
+
+  // --- gate -------------------------------------------------------------------------
+  const q = qualificationSchema.safeParse(a.qualification ?? {});
+  const qual = q.success ? q.data : EMPTY_QUALIFICATION;
+  const gateActive = isQualificationActive(a.qualification);
+  const exits = readExits(a.disqualifiedContent);
+  const exitKeys = new Set(exits.map((e) => e.key));
+  const routed = new Set<string>();
+  const dangling = new Set<string>();
+  let disqualifyOptions = 0;
+  let waitlistOptions = 0;
+  const route = (key: string, outcome: "DISQUALIFY" | "WAITLIST") => {
+    if (outcome === "WAITLIST") waitlistOptions++;
+    else disqualifyOptions++;
+    const k = key.trim();
+    if (k && !exitKeys.has(k)) dangling.add(k);
+    const exit = resolveExit(exits, k);
+    if (exit) routed.add(exit.key);
+  };
+  if (gateActive) {
+    for (const question of qual.questions) {
+      for (const o of question.options) {
+        const outcome = optionOutcome(o);
+        if (outcome !== "NONE") route(o.exitKey ?? "", outcome);
+      }
+    }
+    if (qual.bands.enabled) route(qual.bands.belowExitKey ?? "", isWaitlistExitKey(qual.bands.belowExitKey) ? "WAITLIST" : "DISQUALIFY");
+  }
+  const exitsMissingCopy = exits
+    .filter((e) => routed.has(e.key) && (!e.heading.trim() || (!e.subtext.trim() && !e.bodyHtml.trim())))
+    .map((e) => e.name.trim() || e.key);
+
+  // --- Meta -------------------------------------------------------------------------
+  const [setting, meta] = await Promise.all([
+    prisma.appSetting.findUnique({ where: appSettingWhere(a.tenantId) as never, select: { metaNotUsed: true } }),
+    resolveMetaConfig(a.tenantId, a.adAccountId),
+  ]);
+  const usesMeta = a.fireMetaCapi && (setting as { metaNotUsed?: boolean } | null)?.metaNotUsed !== true;
+  const missing = [!meta.pixelId && "pixel id", !meta.capiToken && "Conversions API token"].filter(Boolean) as string[];
+  const accountProblem = missing.length ? `The ad account this funnel reports to has no ${missing.join(" and no ")}.` : null;
+
+  // --- test runs --------------------------------------------------------------------
+  const [events, rejections, entries, completedSubs] = await Promise.all([
+    prisma.runEvent.findMany({ where: { assessmentId: a.id, isPreview: true }, select: { source: true, eventName: true, eventId: true, status: true } }),
+    prisma.gateDisqualification.findMany({ where: { assessmentId: a.id, isPreview: true, repeat: false }, select: { exitKey: true } }),
+    prisma.gateEntry.findMany({ where: { assessmentId: a.id, isPreview: true }, select: { visitorId: true } }),
+    prisma.submission.findMany({ where: { assessmentId: a.id, isPreview: true, status: "COMPLETED" }, select: { metaExternalId: true } }),
+  ]);
+  const capiOk = events.filter((e) => e.source === "capi" && (e.status === "test_sent" || e.status === "sent"));
+  const pixel = events.filter((e) => e.source === "pixel");
+  const pixelKeys = new Set(pixel.filter((e) => e.eventId).map((e) => `${e.eventName}|${e.eventId}`));
+  const completedVisitors = new Set(completedSubs.map((s) => s.metaExternalId).filter(Boolean));
+
+  const bound = !!(a.resultsDocId || a.vslDocId) || a.resultPagePublished !== null;
+  const published = !!(a.resultsDoc?.publishedAt || a.vslDoc?.publishedAt) || a.resultPagePublished !== null;
+
+  const { ready, lines } = evaluateAdReadiness({
+    status: a.status,
+    landing: { headline: a.title, subheadline: a.subheadline ?? "", intro: a.description ?? "", startButtonLabel: a.startButtonLabel ?? "" },
+    gate: { active: gateActive, disqualifyOptions, waitlistOptions, danglingExitKeys: [...dangling], exitsMissingCopy },
+    categories: a.categories.map((c) => ({
+      name: c.name,
+      questions: c.questions.length,
+      unscoredQuestions: c.questions.filter((x) => x.type === "SINGLE_SELECT" && x._count.options < 2).map((x) => x.text.slice(0, 80)),
+    })),
+    resultBands: a.resultBands,
+    resultPage: { bound, published },
+    meta: { usesMeta, accountProblem, hasTestEventCode: !!meta.testEventCode },
+    runs: {
+      capiAccepted: capiOk.length > 0,
+      pixelReached: pixel.some((e) => e.status === "would_fire" || e.status === "fired"),
+      idsMatch: capiOk.some((e) => e.eventId && pixelKeys.has(`${e.eventName}|${e.eventId}`)),
+      turnedAway: rejections.filter((r) => !isWaitlistExitKey(r.exitKey)).length,
+      waitlisted: rejections.filter((r) => isWaitlistExitKey(r.exitKey)).length,
+      passedAndLeft: entries.filter((e) => !completedVisitors.has(e.visitorId)).length,
+      completed: completedSubs.length,
+    },
+  });
+
+  return {
+    ok: true,
+    data: {
+      assessment: a.title,
+      ready,
+      failing: lines.filter((l) => l.required && !l.pass).map((l) => `${l.check}: ${l.detail}`),
+      lines,
+      ad_link: adLinkFor(await publicOriginFor(a.tenantId), a.slug),
+    },
+  };
 }

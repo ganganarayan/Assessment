@@ -2526,8 +2526,8 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
         "optional": false
       }
     ],
-    "returns": "Promise<ActionResult>",
-    "doc": "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta."
+    "returns": "Promise<ActionResult<{ ad_link: { website_url: string; url_parameters: string; full_url: string; }; }>>",
+    "doc": "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta. Publishing returns ad_link: the public URL and the exact text for the Meta ad's URL parameters field."
   },
   {
     "id": "assessment.assessment.updateAssessment",
@@ -5621,6 +5621,23 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "params": [],
     "returns": "Promise<{ resume: boolean; }>",
     "doc": "The ad link has been taken, recorded from the BUILDER's publish dialog. Publishing a funnel pops up both links, and that dialog is the one interruption worth making at that moment - so the setup sequence must not open a second one behind it saying the same thing. Acknowledging there is therefore the same acknowledgement as answering the sequence's own step, and this is what joins the two. 🔴 NEVER requireWorkspace HERE. The same dialog appears on /admin, where a super admin who has not entered a..."
+  },
+  {
+    "id": "onboarding.adReadiness",
+    "module": "@/features/onboarding/actions",
+    "fn": "adReadiness",
+    "file": "src/features/onboarding/actions.ts",
+    "kind": "read",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<{ assessment: string; ready: boolean; failing: string[]; lines: ReadinessLine[]; ad_link: { website_url: string; url_parameters: string; full_url: string; }; }>>",
+    "doc": "Is this funnel ready for ad spend? One line per check (gate and exits, landing copy, scored questions, bands 0 to 100, result page, pixel and CAPI, test event code, Meta accepting a test run's server event, the browser pixel path, matching event ids, published, and one test run per path), each pass or fail with the reason, plus `ready` (every required line passes). Also returns the ad link: the public URL and the exact text for the Meta ad's URL parameters field."
   },
   {
     "id": "onboarding.answerOnboardingStep",

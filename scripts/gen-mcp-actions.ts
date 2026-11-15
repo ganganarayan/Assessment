@@ -72,7 +72,7 @@ const EXCLUDED_ACTIONS: Record<string, string> = {
  */
 const ACTION_DOCS: Record<string, string> = {
   "assessment.assessment.setAssessmentStatus":
-    "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta.",
+    "Publish (publish=true) or unpublish (false) an assessment. Publishing is refused while the workspace is paused, and while no pixel id plus CAPI token is saved unless the funnel says it does not use Meta. Publishing returns ad_link: the public URL and the exact text for the Meta ad's URL parameters field.",
   "assessment.assessment.updateAssessment":
     "Replace the WHOLE funnel configuration (every field in input; a field left out falls back to its default). Read the funnel with get_assessment first and send every field back. For landing copy only, use assessment.landing.saveLandingScreen instead.",
   "assessment.assessment.deleteAssessment": "Delete an assessment with its categories, questions, bands and submissions. Cannot be undone.",
@@ -113,7 +113,7 @@ const ACTION_DOCS: Record<string, string> = {
 };
 
 const READ_PREFIX = /^(get|list|load|read|preview|count|has|search|lookup|find)[A-Z]/;
-const READ_NAMES = new Set(["aiRerunCount", "agencyTenantExtraPrice", "lifecycleSummary", "fetchWabaTemplates", "vaultMultipartThreshold"]);
+const READ_NAMES = new Set(["aiRerunCount", "agencyTenantExtraPrice", "lifecycleSummary", "fetchWabaTemplates", "vaultMultipartThreshold", "adReadiness"]);
 const DESTRUCTIVE =
   /^(delete|purge|remove|revoke|cancel|disconnect|clear|stop|reject|rollback|unpublish|unbind|discard|abort|deactivate|send|resend|regenerate|retry|fire|submit|setUserSuperAdmin|setTenantSuspended|setUserPassword|setWorkspaceUserPassword|setTenantUnlimited|setFeatureRelease|startScore|startCustom|scheduleBroadcast|setLifecycleLive|reseed|revert|importAssessments|importTenantAssessments)/;
 
