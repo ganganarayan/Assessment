@@ -10,6 +10,7 @@ import {
   createAdAccount,
   updateAdAccount,
   clearAdAccountToken,
+  saveTestEventCode,
   setDefaultAdAccount,
   deleteAdAccount,
   type AdAccountRow,
@@ -74,6 +75,7 @@ function AccountCard({
   const [label, setLabel] = useState(account.label);
   const [pixelId, setPixelId] = useState(account.pixelId);
   const [token, setToken] = useState("");
+  const [testCode, setTestCode] = useState(account.testEventCode);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -162,12 +164,32 @@ function AccountCard({
         </div>
       </div>
 
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs">
+          Test event code <span className="text-muted-foreground">(optional, from Events Manager, Test events)</span>
+        </Label>
+        <Input
+          value={testCode}
+          disabled={!canEdit || pending}
+          onChange={(e) => setTestCode(e.target.value)}
+          placeholder="e.g. TEST12345"
+        />
+        <p className="text-xs text-muted-foreground">
+          Your own test runs send their server events to the Test events tab with this code, never to your live ad account.
+        </p>
+      </div>
+
       {canEdit ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             disabled={pending}
-            onClick={() => run(() => updateAdAccount(account.id, label, pixelId, token), "Saved.")}
+            onClick={() =>
+              run(async () => {
+                const r = await updateAdAccount(account.id, label, pixelId, token);
+                return r.ok && testCode.trim() !== account.testEventCode ? saveTestEventCode(account.id, testCode) : r;
+              }, "Saved.")
+            }
           >
             Save
           </Button>

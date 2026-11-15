@@ -93,6 +93,28 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Everything the Ad accounts screen renders, for the acting scope."
   },
   {
+    "id": "admin.ad-account.saveTestEventCode",
+    "module": "@/features/admin/actions/ad-account",
+    "fn": "saveTestEventCode",
+    "file": "src/features/admin/actions/ad-account.ts",
+    "kind": "write",
+    "destructive": false,
+    "params": [
+      {
+        "name": "id",
+        "type": "string",
+        "optional": false
+      },
+      {
+        "name": "code",
+        "type": "string",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult>",
+    "doc": "Save the Meta Events Manager test event code on one ad account (Events Manager, the pixel, Test events: the code looks like TEST12345). Owner test and preview runs then send their server events to the Test events tab with this code, never to production; with no code they send nothing and are logged as would_fire. Blank clears it. Not a secret."
+  },
+  {
     "id": "admin.ad-account.setDefaultAdAccount",
     "module": "@/features/admin/actions/ad-account",
     "fn": "setDefaultAdAccount",
@@ -5136,6 +5158,33 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Diagnostic: fire a server-side CAPI event (any name, default AssessmentCompleted) to Meta and return Meta's real response. Scoped to the caller - a tenant admin fires against their OWN dataset; a super admin uses the tenant they've entered (or the platform/Gita dataset). View-only staff are blocked. 🟡 `adAccountId` is which of the workspace's ad accounts to test, blank meaning the default. It is a real argument and not a convenience: a workspace running two accounts got one green result here fo..."
   },
   {
+    "id": "events.log.listRunEvents",
+    "module": "@/features/events/actions/log",
+    "fn": "listRunEvents",
+    "file": "src/features/events/actions/log.ts",
+    "kind": "read",
+    "destructive": false,
+    "params": [
+      {
+        "name": "assessmentId",
+        "type": "string",
+        "optional": false
+      },
+      {
+        "name": "sinceMinutes",
+        "type": "number",
+        "optional": true
+      },
+      {
+        "name": "includeTestRuns",
+        "type": "boolean",
+        "optional": true
+      }
+    ],
+    "returns": "Promise<ActionResult<{ assessment: string; since: string; runs: RunView[]; note: string; }>>",
+    "doc": "Read what fired, per visitor run, on one assessment in the last sinceMinutes (default 60, at most 7 days). Each run lists the path taken (gate passed, opt-in reached, opted in, completed) and every Meta event from the browser pixel and the server, with its event id, whether both sides share it (Meta dedupes them), Meta's reply and the test flag. Pixel status: fired, would_fire (test run, pixel not loaded), not_loaded. Server status: sent, failed, test_sent (Test events tab, via the ad account's ..."
+  },
+  {
     "id": "events.settings.getAbandonedHours",
     "module": "@/features/events/actions/settings",
     "fn": "getAbandonedHours",
@@ -8867,6 +8916,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/calendar/google": () => import("@/features/calendar/google") as Promise<Record<string, unknown>>,
   "@/features/contacts/actions": () => import("@/features/contacts/actions") as Promise<Record<string, unknown>>,
   "@/features/events/actions/capi-test": () => import("@/features/events/actions/capi-test") as Promise<Record<string, unknown>>,
+  "@/features/events/actions/log": () => import("@/features/events/actions/log") as Promise<Record<string, unknown>>,
   "@/features/events/actions/settings": () => import("@/features/events/actions/settings") as Promise<Record<string, unknown>>,
   "@/features/events/actions/webhooks": () => import("@/features/events/actions/webhooks") as Promise<Record<string, unknown>>,
   "@/features/indexnow/actions": () => import("@/features/indexnow/actions") as Promise<Record<string, unknown>>,

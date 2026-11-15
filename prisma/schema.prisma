@@ -1121,6 +1121,7 @@ model Assessment {
   gateDisqualifications GateDisqualification[]
   ctaClicks             CtaClick[]
   gateEntries           GateEntry[]
+  runEvents             RunEvent[]
   eventCounts           FunnelEventCount[]
   bookingTypes          BookingType[]
 
@@ -3350,6 +3351,44 @@ model Template {
 // (resolvePlatformMetaConfig). Folding it in would give the SaaS funnel and a customer's
 // funnel one shared table and two meanings for "default".
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// RunEvent - one row per Meta event of one visitor's run through a funnel, from BOTH
+// sides: the browser pixel (reported by a beacon after it fires, or "would have fired"
+// in a test run, where the pixel is not loaded) and the server Conversions API send.
+//
+// It exists so a person (or Claude, through events.log.listRunEvents) can read back,
+// minutes after a test run, exactly what fired: which events, from which side, whether
+// the two copies share an event id and so dedupe, and what Meta answered. The CAPI log
+// stays the record of server sends; this is the per-run view across both sides.
+//
+// visitorId is the first-party browser id (a360_xid), the same value sent to Meta as
+// external_id, so the rows of one run group on it. No foreign key on tenantId on
+// purpose: a historical record, read through the assessment.
+// ---------------------------------------------------------------------------
+model RunEvent {
+  id           String     @id @default(cuid())
+  tenantId     String?
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  visitorId    String
+  /// "pixel" (browser) or "capi" (server).
+  source       String
+  eventName    String
+  eventId      String?
+  /// An owner test or preview run.
+  isPreview    Boolean    @default(false)
+  /// pixel: fired | would_fire | not_loaded. capi: sent | failed | test_sent | test_failed | would_fire | skipped.
+  status       String
+  httpStatus   Int?
+  /// Meta's reply (truncated) or why nothing was sent.
+  response     String?
+  createdAt    DateTime   @default(now())
+
+  @@index([assessmentId, createdAt])
+  @@index([assessmentId, visitorId])
+  @@map("run_event")
+}
 
 model AdAccount {
   id       String @id @default(cuid())

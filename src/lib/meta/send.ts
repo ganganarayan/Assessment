@@ -3,6 +3,7 @@ import { buildCapiEvent, resolveCapiConfig, type CapiEventInput } from "@/lib/me
 import { resolveMetaConfig, resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { publicOriginFor, platformOrigin } from "@/lib/tenant/public-origin";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
+import { logCapiRunEvent } from "@/lib/meta/run-event";
 
 /**
  * Network sender for Meta Conversions API. Imports env (so it is NOT imported by
@@ -142,6 +143,48 @@ export async function testCapi(testEventCode: string | undefined, eventNameInput
 }
 
 /**
+ * Where a PREVIEW event goes instead of production: Meta's Test events tab, and only
+ * with the ad account's own test event code attached, so it lands in no audience and
+ * trains no campaign. With no code saved, nothing is sent at all and the run log says
+ * what would have fired.
+ *
+ * 🔴 The one rule here: this function never POSTs without test_event_code in the body.
+ * A preview event that reaches Meta without it is a production conversion.
+ */
+async function sendPreviewToTestEvents(input: CapiEventInput, tenantId: string | null, adAccountId: string | null): Promise<{
+  ok: boolean;
+  status?: number;
+  response?: string;
+  error?: string;
+}> {
+  const m = await resolveMetaConfig(tenantId, adAccountId);
+  const code = m.testEventCode?.trim() || "";
+  const cfg = await getConfig(tenantId, adAccountId);
+  if (!cfg) {
+    const response = "skipped: preview, and no pixel id plus CAPI token for this ad account";
+    await logCapiRunEvent(input, "skipped", { response });
+    return { ok: true, response };
+  }
+  if (!code) {
+    const response = "would have fired: preview run, no test event code saved on this ad account";
+    await logCapiRunEvent(input, "would_fire", { response });
+    return { ok: true, response };
+  }
+  const body = JSON.stringify({ data: [buildCapiEvent(await withTenantSourceUrl(input, tenantId))], test_event_code: code });
+  const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body, signal: AbortSignal.timeout(8_000) });
+    const text = (await res.text()).slice(0, 800);
+    await logCapiRunEvent(input, res.ok ? "test_sent" : "test_failed", { httpStatus: res.status, response: text });
+    return { ok: res.ok, status: res.status, response: `test event: ${text}` };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    await logCapiRunEvent(input, "test_failed", { response: error });
+    return { ok: false, error };
+  }
+}
+
+/**
  * Like sendCapiEvent but RETURNS Meta's real response (status + body) and never
  * applies a test code - for the admin "re-send a real purchase" recovery tool, so
  * the operator can see the conversion was accepted (events_received: 1).
@@ -153,10 +196,12 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   error?: string;
 }> {
   // An owner previewing their own funnel. Everything else about the run is real;
-  // this is the single thing that must not reach Meta. See CapiEventInput.preview.
-  if (input.preview) return { ok: true, response: "skipped: preview" };
+  // this is the single thing that must not reach production Meta: it goes to the Test
+  // events tab with the ad account's test code, or nowhere. See CapiEventInput.preview.
+  if (input.preview) return sendPreviewToTestEvents(input, tenantId, adAccountId);
   const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) {
+    await logCapiRunEvent(input, "skipped", { response: "No Meta pixel id + Conversions API token for this ad account." });
     return { ok: false, error: "No Meta pixel id + Conversions API token for this scope. Set them in Settings; environment variables are no longer read." };
   }
   const body = JSON.stringify({ data: [buildCapiEvent(await withTenantSourceUrl(input, tenantId))] }); // real conversion - no test code
@@ -168,9 +213,13 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
       body,
       signal: AbortSignal.timeout(8_000),
     });
-    return { ok: res.ok, status: res.status, response: (await res.text()).slice(0, 800) };
+    const text = (await res.text()).slice(0, 800);
+    await logCapiRunEvent(input, res.ok ? "sent" : "failed", { httpStatus: res.status, response: text });
+    return { ok: res.ok, status: res.status, response: text };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const error = e instanceof Error ? e.message : String(e);
+    await logCapiRunEvent(input, "failed", { response: error });
+    return { ok: false, error };
   }
 }
 

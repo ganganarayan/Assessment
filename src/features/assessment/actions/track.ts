@@ -231,6 +231,7 @@ export async function recordGatePass(
           eventName: GATE_PASSED_EVENT,
           eventId: randomUUID(),
           preview,
+          run: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid },
           eventTimeMs: Date.now(),
           eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,
           user: {
@@ -509,6 +510,7 @@ async function fireGateDisqualified(
       {
         eventName,
         preview,
+        run: { assessmentId: a.id, tenantId: a.tenantId, visitorId: externalId ?? visitorId },
         eventId: randomUUID(),
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,

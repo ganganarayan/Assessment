@@ -38,6 +38,8 @@ export interface AdAccountRow {
   pixelId: string;
   /** True when a CAPI token is stored. The token itself is never returned. */
   hasCapiToken: boolean;
+  /** Events Manager test event code: where owner test runs send instead of production. */
+  testEventCode: string;
   isDefault: boolean;
   /** How many assessments report to it - a delete blocker, so it is shown up front. */
   assessmentCount: number;
@@ -103,7 +105,7 @@ async function rowsFor(tenantId: string): Promise<AdAccountRow[]> {
     prisma.adAccount.findMany({
       where: { tenantId },
       orderBy: [{ isDefault: "desc" }, { label: "asc" }],
-      select: { id: true, label: true, pixelId: true, capiTokenEnc: true, isDefault: true },
+      select: { id: true, label: true, pixelId: true, capiTokenEnc: true, testEventCode: true, isDefault: true },
     }),
     prisma.assessment.groupBy({
       by: ["adAccountId"],
@@ -117,6 +119,7 @@ async function rowsFor(tenantId: string): Promise<AdAccountRow[]> {
     label: a.label,
     pixelId: a.pixelId ?? "",
     hasCapiToken: !!a.capiTokenEnc,
+    testEventCode: a.testEventCode ?? "",
     isDefault: a.isDefault,
     assessmentCount: used.get(a.id) ?? 0,
   }));
@@ -223,6 +226,22 @@ export async function updateAdAccount(
       ...(capiToken.trim() ? { capiTokenEnc: encryptWithSecret(capiToken.trim(), env.BETTER_AUTH_SECRET) } : {}),
     },
   });
+  revalidateAdAccounts();
+  return { ok: true };
+}
+
+/** Save the Meta Events Manager test event code on one ad account (Events Manager, the pixel, Test events: the code looks like TEST12345). Owner test and preview runs then send their server events to the Test events tab with this code, never to production; with no code they send nothing and are logged as would_fire. Blank clears it. Not a secret. */
+export async function saveTestEventCode(id: string, code: string): Promise<ActionResult> {
+  const got = await editableTenant();
+  if ("ok" in got) return got;
+  const { tenantId } = got;
+  const existing = await prisma.adAccount.findFirst({ where: { id, tenantId }, select: { id: true } });
+  if (!existing) return { ok: false, error: "That ad account isn't in this workspace." };
+  const clean = code.trim();
+  if (clean && !/^[A-Za-z0-9_-]{3,40}$/.test(clean)) {
+    return { ok: false, error: "A test event code is letters and digits, like TEST12345. Copy it from Events Manager, Test events." };
+  }
+  await prisma.adAccount.update({ where: { id }, data: { testEventCode: clean || null } });
   revalidateAdAccounts();
   return { ok: true };
 }

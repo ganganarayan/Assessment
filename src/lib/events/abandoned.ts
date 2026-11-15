@@ -276,6 +276,7 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
       // This sweep runs hours later, which is exactly why the flag is on the row:
       // an owner's preview must not become a retargeting signal overnight.
       preview: g.isPreview === true,
+      run: { assessmentId: g.assessmentId, tenantId: g.assessment.tenantId, visitorId: g.visitorId },
       eventTimeMs: Date.now(),
       eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${g.assessment.slug}`,
       user: {

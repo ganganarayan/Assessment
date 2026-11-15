@@ -407,6 +407,7 @@ async function fireRegistration(
           eventName: metaEventName,
           eventId,
           preview,
+          run: { assessmentId: assessment.id, tenantId: assessment.tenant?.id ?? null, visitorId: externalId ?? null },
           eventTimeMs: Date.now(),
           eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
           user: {
@@ -2002,6 +2003,7 @@ export async function completeSubmission(
         eventName: completionEvent,
         eventId,
         preview: full?.isPreview === true,
+        run: { assessmentId: assessment.id, tenantId: assessment.tenant?.id ?? null, visitorId: full?.metaExternalId ?? null },
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
         user: {

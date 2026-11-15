@@ -54,6 +54,12 @@ export interface CapiEventInput {
    * Set here rather than guarded at each call site so a sender added later inherits it.
    */
   preview?: boolean;
+  /**
+   * Which funnel run this event belongs to, so the send is written to the per-run event
+   * log (RunEvent) that events.log.listRunEvents reads. Logging only: it never changes
+   * what is sent. visitorId is the first-party id also sent as external_id.
+   */
+  run?: { assessmentId: string; tenantId: string | null; visitorId: string | null };
 }
 
 /** Meta `user_data`: hashed PII as arrays + plaintext request-context signals. */

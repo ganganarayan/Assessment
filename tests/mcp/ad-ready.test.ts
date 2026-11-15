@@ -34,3 +34,11 @@ test("the landing screen has its own read and patch", () => {
   assert.equal(save?.kind, "write");
   assert.ok(save?.params[1]?.fields?.some((f) => f.name === "headline"));
 });
+
+test("the run event log and the test event code setter are reachable", () => {
+  const log = ACTION_CATALOG.find((x) => x.id === "events.log.listRunEvents");
+  const code = ACTION_CATALOG.find((x) => x.id === "admin.ad-account.saveTestEventCode");
+  assert.equal(log?.kind, "read");
+  assert.deepEqual(log?.params.map((p) => p.name), ["assessmentId", "sinceMinutes", "includeTestRuns"]);
+  assert.equal(code?.kind, "write");
+});

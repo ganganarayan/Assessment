@@ -64,6 +64,28 @@ console.log("Preview never reaches the Conversions API\n");
   }
 }
 
+// --- 🔴 a preview goes to Test events with the code, or nowhere ------------------------
+{
+  const send = read("src/lib/meta/send.ts");
+  const at = send.indexOf("async function sendPreviewToTestEvents");
+  expect("the preview path exists", at >= 0);
+  if (at >= 0) {
+    const body = send.slice(at, send.indexOf("\n}\n", at));
+    const noCodeAt = body.indexOf("if (!code)");
+    const fetchAt = body.indexOf("fetch(");
+    expect("a preview with no test event code is never sent", noCodeAt >= 0 && noCodeAt < fetchAt, "no `if (!code)` return before the fetch");
+    expect(
+      "the only body a preview sends carries test_event_code",
+      (body.match(/JSON\.stringify\(/g) ?? []).length === 1 && /JSON\.stringify\(\{[^\n]*test_event_code: code \}\)/.test(body),
+      "a preview body without test_event_code is a production conversion",
+    );
+  }
+  expect(
+    "sendCapiEventVerbose hands a preview to the test path",
+    /if \(input\.preview\) return sendPreviewToTestEvents\(/.test(send),
+  );
+}
+
 // --- the flag is threaded from everywhere an event is built --------------------------
 {
   const sub = read("src/features/assessment/actions/submission.ts");

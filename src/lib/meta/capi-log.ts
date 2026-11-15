@@ -10,6 +10,7 @@ import { sendCapiEventVerbose, isCapiConfigured, sendPlatformCapiEvent, isPlatfo
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
+import { logCapiRunEvent } from "@/lib/meta/run-event";
 
 /**
  * Why nothing reached Meta when the plan does not include CAPI. Named once because it is
@@ -71,6 +72,7 @@ export async function sendAndLogLifecycleCapi(
     await prisma.capiLog
       .create({ data: { ...base, status: "failed", response: CAPI_UNPAID } })
       .catch(() => {});
+    await logCapiRunEvent(input, "skipped", { response: CAPI_UNPAID });
     return { ok: false, error: CAPI_UNPAID };
   }
 
@@ -79,6 +81,7 @@ export async function sendAndLogLifecycleCapi(
     await prisma.capiLog
       .create({ data: { ...base, status: "failed", response: "Meta CAPI not configured for this scope." } })
       .catch(() => {});
+    await logCapiRunEvent(input, "skipped", { response: "Meta CAPI not configured for this ad account." });
     return { ok: false, error: "Meta CAPI is not configured for this scope (Settings → Integrations)." };
   }
 

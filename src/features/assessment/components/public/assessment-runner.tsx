@@ -36,7 +36,7 @@ import {
   FREE_TEXT_ANSWER_MAX,
   type PreResultField,
 } from "@/features/assessment/schemas";
-import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
+import { pixelTrack, pixelTrackCustom, setPixelRun } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { currentAdParams } from "@/lib/attribution-client";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -484,6 +484,13 @@ export function AssessmentRunner({
   const [payPending, setPayPending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [pending, start] = useTransition();
+
+  // Every pixel event of this run is also reported to the run event log (or, in a test
+  // run where the pixel is not loaded, recorded as "would have fired").
+  useEffect(() => {
+    setPixelRun({ slug: assessment.slug, visitorId: getOrCreateExternalId(), preview: !!preview });
+    return () => setPixelRun(null);
+  }, [assessment.slug, preview]);
 
   // Record the opt-in page view once per load (skip admin preview).
   useEffect(() => {

@@ -101,6 +101,9 @@ export interface MetaConfig {
   pixelId: string | null;
   capiToken: string | null;
   datasetId: string | null;
+  /** The ad account's Events Manager test event code. Only owner test and preview runs
+   *  use it; a real event never carries one. Null outside the ad account path. */
+  testEventCode?: string | null;
 }
 
 /**
@@ -148,16 +151,16 @@ export async function resolveMetaConfig(
     const row = adAccountId
       ? await prisma.adAccount.findFirst({
           where: { id: adAccountId, tenantId },
-          select: { pixelId: true, capiTokenEnc: true },
+          select: { pixelId: true, capiTokenEnc: true, testEventCode: true },
         })
       : await prisma.adAccount.findFirst({
           where: { tenantId, isDefault: true },
-          select: { pixelId: true, capiTokenEnc: true },
+          select: { pixelId: true, capiTokenEnc: true, testEventCode: true },
         });
 
     if (row) {
       const pixelId = row.pixelId?.trim() || null;
-      return { pixelId, capiToken: safeDecrypt(row.capiTokenEnc), datasetId: pixelId };
+      return { pixelId, capiToken: safeDecrypt(row.capiTokenEnc), datasetId: pixelId, testEventCode: row.testEventCode?.trim() || null };
     }
 
     // An assessment naming an account that no longer resolves must NOT fall through to
