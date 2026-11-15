@@ -39,7 +39,8 @@ console.log("\n=== Checkout and Meta events ===");
   expect("the paid checkout is named for the tenant", sub.includes("name: brand.name,") && !sub.includes('PAYMENT_BUSINESS_NAME = "Assess360"'));
   expect("the paid checkout carries the tenant's logo and colour", sub.includes("image: brand.logoUrl,") && sub.includes("themeColor: brand.primaryColor,"));
   const send = src("src/lib/meta/send.ts");
-  expect("tenant server events name the tenant's address", (send.match(/await withTenantSourceUrl\(input, tenantId\)/g) ?? []).length === 2);
+  // Three tenant senders: the live one, the verbose one, and the preview path to Test events.
+  expect("tenant server events name the tenant's address", (send.match(/await withTenantSourceUrl\(input, tenantId\)/g) ?? []).length === 3);
 }
 
 console.log("\n=== Redirects that dropped respondents on the Assess360 homepage ===");

@@ -92,6 +92,7 @@ export async function purgeTenantEverywhere(tenantId: string): Promise<PurgeRepo
       await tx.paymentLink.deleteMany({ where: t });
       await tx.payment.deleteMany({ where: { tenantId, purpose: { not: "subscription" } } });
       await tx.capiLog.deleteMany({ where: t });
+      await tx.runEvent.deleteMany({ where: t });
       await tx.webhookLog.deleteMany({ where: t });
       await tx.vaultActivity.deleteMany({ where: t });
       await tx.vaultFile.deleteMany({ where: t });
