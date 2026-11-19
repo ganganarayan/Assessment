@@ -12,6 +12,7 @@ import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion"
 import { instrumentEmailLinks } from "@/lib/nurture/tracking";
 import { env } from "@/lib/env";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { emailAccountKey, waitForEmailSlot } from "@/lib/email/pace";
 
 /**
  * The sender's own Reply-To (Settings, Brand and legal). A caller that names one (the
@@ -238,6 +239,16 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
     },
   });
   if (!s) return;
+  if (!opts?.force && s.nurtureSentAt) return; // already sent: never queue behind others for nothing
+
+  const cfg: NurtureConfig = await resolveNurtureConfig(s.tenantId);
+
+  // Space result emails 10 to 20 seconds apart per sending account (live rooms finish
+  // all at once). Waited BEFORE the claim below, so a restart mid-wait leaves the row
+  // unsent and resendable rather than stamped sent. A manual resend does not queue.
+  if (!opts?.force && cfg.email.enabled && (s.leadEmail ?? "").trim()) {
+    await waitForEmailSlot(emailAccountKey(s.tenantId));
+  }
 
   // Once-guard: atomically claim the send. updateMany with the null filter means only
   // the FIRST caller sets the stamp (count 1); a concurrent/duplicate opt-in gets 0 and
@@ -252,7 +263,6 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
     await prisma.submission.update({ where: { id: s.id }, data: { nurtureSentAt: new Date() } }).catch(() => {});
   }
 
-  const cfg: NurtureConfig = await resolveNurtureConfig(s.tenantId);
   const lead = leadOf(s);
 
   // The person's own result URL ({{resultUrl}} in the draft). Only meaningful once
