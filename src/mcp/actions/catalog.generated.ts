@@ -3330,7 +3330,7 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
       }
     ],
     "returns": "Promise<ActionResult<AssessmentPageData[]>>",
-    "doc": "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores. Set its content with updateBlockConfig."
+    "doc": "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores, ai_statement. Set its content with updateBlockConfig."
   },
   {
     "id": "assessment.pages.addPage",

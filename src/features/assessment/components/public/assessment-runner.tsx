@@ -1640,7 +1640,7 @@ export function AssessmentRunner({
     return (
       <ResultPages
         pages={assessment.pages}
-        result={pageResult ?? { overallBandTitle: null, overallBandLevel: null, categories: [], customerId: null, vidapulseParam: null }}
+        result={pageResult ?? { overallBandTitle: null, overallBandLevel: null, categories: [], scoresLocked: true, aiStatement: null, customerId: null, vidapulseParam: null }}
         onPay={payFromPage}
         payPending={payPending}
         payError={payError}

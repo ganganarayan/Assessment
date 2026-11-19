@@ -11,7 +11,8 @@ export type BlockType =
   | "pay_button" // { label } -> opens the configured payment
   | "overall_band" // { prefix? } dynamic: matched overall band word
   | "band_sentence" // { byBand: { LOW, MEDIUM, HIGH, CRITICAL } } dynamic: per-band line
-  | "category_scores"; // { heading? } dynamic: categories + bands, scores blurred
+  | "category_scores" // { heading? } dynamic: categories + bands, scores blurred only while payment is due
+  | "ai_statement"; // {} dynamic: the respondent's generated AI statement, placed where the block sits
 
 export const BLOCK_TYPES: { type: BlockType; label: string; dynamic: boolean }[] = [
   { type: "text", label: "Text / write-up", dynamic: false },
@@ -19,7 +20,8 @@ export const BLOCK_TYPES: { type: BlockType; label: string; dynamic: boolean }[]
   { type: "pay_button", label: "Payment button", dynamic: false },
   { type: "overall_band", label: "Overall band (dynamic)", dynamic: true },
   { type: "band_sentence", label: "Band sentence (dynamic, per band)", dynamic: true },
-  { type: "category_scores", label: "Category breakdown - scores blurred (dynamic)", dynamic: true },
+  { type: "category_scores", label: "Category breakdown (dynamic, scores blurred until paid)", dynamic: true },
+  { type: "ai_statement", label: "AI statement (dynamic)", dynamic: true },
 ];
 
 export const BAND_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
@@ -45,13 +47,17 @@ export interface CategoryScoresConfig {
   heading?: string;
 }
 
+/** No settings: the statement is the respondent's own, written at submit. */
+export type AiStatementConfig = Record<string, never>;
+
 export type BlockConfig =
   | TextConfig
   | VideoConfig
   | PayButtonConfig
   | OverallBandConfig
   | BandSentenceConfig
-  | CategoryScoresConfig;
+  | CategoryScoresConfig
+  | AiStatementConfig;
 
 export function isBlockType(v: string): v is BlockType {
   return BLOCK_TYPES.some((b) => b.type === v);

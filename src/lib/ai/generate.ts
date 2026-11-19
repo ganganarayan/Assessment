@@ -15,6 +15,7 @@ import { costMicroUsd, hasCostReport } from "@/lib/ai/pricing";
 import { clinicSystemPrompt } from "@/lib/ai/clinic-prompt";
 import { tenantBrand } from "@/lib/tenant/brand";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { alertAiCreditExhausted, isCreditExhausted } from "@/lib/ai/credit-alert";
 
 /**
  * Server-side LLM call for the personalized result statement. Fully fail-soft:
@@ -274,12 +275,31 @@ async function callProvider(
 ): Promise<string | null> {
   // Returns the RAW model text; humanizing (dash-stripping) is applied by the caller
   // only for built-in code versions, so instruction versions keep their style verbatim.
-  const call =
-    cfg.provider === "claude"
-      ? await callClaude(cfg, system, user)
-      : cfg.provider === "openai"
-        ? await callOpenAI(cfg, system, user)
-        : await callGemini(cfg, system, user);
+  let call: AiCall;
+  try {
+    call =
+      cfg.provider === "claude"
+        ? await callClaude(cfg, system, user)
+        : cfg.provider === "openai"
+          ? await callOpenAI(cfg, system, user)
+          : await callGemini(cfg, system, user);
+  } catch (e) {
+    // Out of credit is the one failure that blanks every AI statement at once, and
+    // result pages carry no fallback text by design, so the owners hear about it now.
+    // Fire and forget: the respondent's result must not wait on an email.
+    const message = e instanceof Error ? e.message : String(e);
+    if (isCreditExhausted(message)) {
+      void alertAiCreditExhausted({
+        provider: cfg.provider,
+        model: cfg.model,
+        onPlatformKey: cfg.onPlatformKey,
+        tenantId: meta.tenantId,
+        purpose: meta.purpose,
+        error: message,
+      });
+    }
+    throw e;
+  }
 
   void recordAiUsage(cfg, call, meta);
   return call.text;

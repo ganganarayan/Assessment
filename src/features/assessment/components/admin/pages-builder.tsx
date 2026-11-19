@@ -309,7 +309,18 @@ function BlockEditor({
       ) : null}
 
       {block.type === "category_scores" ? (
-        <Input placeholder="Heading (optional)" value={str(c.heading)} onChange={(e) => set({ heading: e.target.value })} onBlur={() => onSave(c)} />
+        <div className="flex flex-col gap-2">
+          <Input placeholder="Heading (optional)" value={str(c.heading)} onChange={(e) => set({ heading: e.target.value })} onBlur={() => onSave(c)} />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Scores are blurred only while a payment is due. A funnel with no payment shows the real scores.
+          </p>
+        </div>
+      ) : null}
+
+      {block.type === "ai_statement" ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Shows the respondent&apos;s AI statement here. Tick &quot;Use an AI personal statement in the results&quot; in the funnel&apos;s Scoring step so one is written.
+        </p>
       ) : null}
     </div>
   );

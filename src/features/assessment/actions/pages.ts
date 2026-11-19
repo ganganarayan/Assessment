@@ -10,6 +10,7 @@ import { resolveVidapulseParam } from "@/lib/vidapulse";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 import { docInScope, resultsDraftOf } from "@/features/result-pages/data";
 import { mirrorPublished } from "@/features/result-pages/mirror";
+import { paymentsAllowed } from "@/lib/payments/enabled";
 
 /**
  * The RESULTS page builder, scoped to a ResultPageDoc.
@@ -23,13 +24,25 @@ import { mirrorPublished } from "@/features/result-pages/mirror";
  * still the only thing the public renders.
  */
 
-/** Result data the public page-2 needs for dynamic blocks. Bands only - the real
- *  numeric scores are NEVER sent (the teaser blurs them; the VSL shows them after
- *  payment via the token), so a viewer can't read scores from the response. */
+/**
+ * Result data the public page-2 needs for dynamic blocks.
+ *
+ * Scores follow the payment, decided HERE and nowhere else:
+ *   - payment required (paidMode on AND payments allowed for the tenant) and not yet
+ *     paid: scores are NOT sent, so the breakdown shows a blurred placeholder and a
+ *     viewer cannot read the numbers from the response;
+ *   - no payment required, or already paid: the real scores are sent and shown.
+ * The browser never decides this; it only renders what it was given.
+ */
 export interface PageResultData {
   overallBandTitle: string | null;
   overallBandLevel: string | null;
-  categories: { name: string; band: string | null }[];
+  /** score/max are null exactly when `scoresLocked` is true. */
+  categories: { name: string; band: string | null; score: number | null; max: number | null }[];
+  /** True while a required payment is unpaid: the breakdown blurs. */
+  scoresLocked: boolean;
+  /** The respondent's AI statement, written at submit. Null when none was generated. */
+  aiStatement: string | null;
   // VidaPulse identity bridge: the opaque customerId + the tenant's effective param
   // name, so the VSL video block can carry the id into the embed. param null = off.
   customerId: string | null;
@@ -39,22 +52,42 @@ export interface PageResultData {
 export async function getResultForPages(submissionId: string): Promise<ActionResult<PageResultData>> {
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { resultSnapshot: true, customerId: true, assessment: { select: { tenantId: true } } },
+    select: {
+      resultSnapshot: true,
+      customerId: true,
+      aiStatement: true,
+      completedPaidAt: true,
+      assessment: { select: { tenantId: true, paidMode: true } },
+    },
   });
   const snap = (s?.resultSnapshot ?? null) as ResultSnapshot | null;
   if (!snap) return { ok: false, error: "No result yet." };
   // Resolve the tenant's VidaPulse param (singleton for platform/Gita assessments).
   const tenantId = s?.assessment.tenantId ?? null;
-  const setting = await prisma.appSetting.findUnique({
-    where: appSettingWhere(tenantId) as never,
-    select: { vidapulseTrackingEnabled: true, vidapulseParam: true },
-  });
+  const [setting, allowed] = await Promise.all([
+    prisma.appSetting.findUnique({
+      where: appSettingWhere(tenantId) as never,
+      select: { vidapulseTrackingEnabled: true, vidapulseParam: true },
+    }),
+    paymentsAllowed(tenantId),
+  ]);
+  // Same rule the runner uses to take payment: paidMode, unless the tenant (or the
+  // platform master) has payments switched off, in which case the funnel runs free.
+  const paymentRequired = !!s?.assessment.paidMode && allowed;
+  const scoresLocked = paymentRequired && !s?.completedPaidAt;
   return {
     ok: true,
     data: {
       overallBandTitle: snap.resultBand ?? null,
       overallBandLevel: snap.resultBandLevel ?? null,
-      categories: (Array.isArray(snap.categories) ? snap.categories : []).map((c) => ({ name: c.name, band: c.band })),
+      categories: (Array.isArray(snap.categories) ? snap.categories : []).map((c) => ({
+        name: c.name,
+        band: c.band,
+        score: scoresLocked ? null : c.score,
+        max: scoresLocked ? null : c.max,
+      })),
+      scoresLocked,
+      aiStatement: s?.aiStatement?.trim() || snap.aiStatement?.trim() || null,
       customerId: s?.customerId ?? null,
       vidapulseParam: resolveVidapulseParam(setting),
     },

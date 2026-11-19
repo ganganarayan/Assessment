@@ -97,7 +97,7 @@ const ACTION_DOCS: Record<string, string> = {
   "assessment.pages.listPages": "Read every page and block of a result page document.",
   "assessment.pages.getResultForPages": "Read the scored result a result page would show for one submission.",
   "assessment.pages.addBlock":
-    "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores. Set its content with updateBlockConfig.",
+    "Add a block to a result page. type is one of: text, video, pay_button, overall_band, band_sentence, category_scores, ai_statement. Set its content with updateBlockConfig.",
   "assessment.pages.deleteBlock": "Delete one block from a result page.",
   "assessment.pages.moveBlock": "Move a block up or down on its page.",
   "assessment.pages.updateBlockConfig":
