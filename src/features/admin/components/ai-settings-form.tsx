@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateAiSettings,
   saveProviderKey,
   testAi,
+  listAiModels,
   type AiSettingsView,
   type ProviderKeyView,
 } from "@/features/admin/actions/ai-settings";
-import { AI_PROVIDERS, DEFAULT_MODEL, MODELS_BY_PROVIDER, type AiProvider } from "@/lib/ai/types";
+import { AI_PROVIDERS, DEFAULT_MODEL, MODELS_BY_PROVIDER, type AiModelOption, type AiProvider } from "@/lib/ai/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,16 +87,45 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const [enabled, setEnabled] = useState(initial.enabled);
   const [provider, setProvider] = useState<AiProvider>(initial.provider);
   const [model, setModel] = useState(initial.model);
-  // Custom-model mode: on when the saved model isn't one of the curated options.
-  const [customModel, setCustomModel] = useState(
-    initial.model !== "" &&
-      !MODELS_BY_PROVIDER[initial.provider].some((m) => m.value === initial.model),
-  );
+  // Custom-model mode: typed by hand. A saved model missing from the list stays
+  // selected as its own option instead (see modelOptions), so it is never lost.
+  const [customModel, setCustomModel] = useState(false);
+  // The provider's live model list, fetched with the saved key. Starts on the static
+  // fallback so the dropdown is never empty while it loads.
+  const [catalog, setCatalog] = useState<{ provider: AiProvider; models: AiModelOption[]; live: boolean }>({
+    provider: initial.provider,
+    models: MODELS_BY_PROVIDER[initial.provider],
+    live: false,
+  });
+  const [loadingModels, setLoadingModels] = useState(true);
   const [guidance, setGuidance] = useState(initial.guidance);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [test, setTest] = useState<{ ok: boolean; ms: number; text?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
   const [testing, startTest] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    listAiModels(provider)
+      .then((r) => {
+        if (!cancelled) setCatalog({ provider, models: r.models, live: r.live });
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog({ provider, models: MODELS_BY_PROVIDER[provider], live: false });
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingModels(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
+
+  const listed = catalog.provider === provider ? catalog.models : MODELS_BY_PROVIDER[provider];
+  const modelOptions: AiModelOption[] =
+    model && !listed.some((m) => m.value === model)
+      ? [{ value: model, label: `${model} (saved)` }, ...listed]
+      : listed;
 
   const selectedHasKey = initial.keys.find((k) => k.provider === provider)?.hasKey ?? false;
 
@@ -150,6 +180,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
               // Switching provider resets to that provider's default model. The key is
               // already saved per provider, so nothing is re-entered.
               setProvider(e.target.value as AiProvider);
+              setLoadingModels(true);
               setModel("");
               setCustomModel(false);
             }}
@@ -175,11 +206,18 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
             }}
           >
             <option value="">Default ({DEFAULT_MODEL[provider]})</option>
-            {MODELS_BY_PROVIDER[provider].map((m) => (
+            {modelOptions.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
             <option value="__custom__">Custom…</option>
           </select>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            {loadingModels
+              ? "Loading the models this provider offers…"
+              : catalog.live && catalog.provider === provider
+                ? `Every model ${PROVIDER_LABEL[provider]} offers right now, newest first (${listed.length}).`
+                : "Showing the built-in list: save a key above to see every model this provider offers."}
+          </p>
           {customModel ? (
             <Input
               value={model}

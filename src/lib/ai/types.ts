@@ -10,10 +10,16 @@ export const DEFAULT_MODEL: Record<AiProvider, string> = {
   gemini: "gemini-1.5-pro",
 };
 
-/** Selectable models per provider for the AI settings dropdown. Curated (a short
- *  100-150 word statement doesn't need the top tier) + a "Custom…" escape hatch in
- *  the form for anything not listed. Keep the cheap/fast option first. */
-export const MODELS_BY_PROVIDER: Record<AiProvider, { value: string; label: string }[]> = {
+/** One entry in a model dropdown. */
+export interface AiModelOption {
+  value: string;
+  label: string;
+}
+
+/** FALLBACK model list per provider. The AI settings dropdown reads the live list from
+ *  the provider (lib/ai/model-catalog.ts) and only shows this one when there is no key
+ *  or the provider cannot be reached, so nobody needs to keep it current by hand. */
+export const MODELS_BY_PROVIDER: Record<AiProvider, AiModelOption[]> = {
   claude: [
     { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 - fast, cheapest" },
     { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 - balanced" },

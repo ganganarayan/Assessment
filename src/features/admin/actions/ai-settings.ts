@@ -7,6 +7,7 @@ import { resolveActingScope, scopeEditDenied, scopeOwnerDenied, configTenantOf, 
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
+import { listProviderModels, fallbackModels, type ModelCatalog } from "@/lib/ai/model-catalog";
 import { testStatement } from "@/lib/ai/generate";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { builtInPromptsAllowed } from "@/lib/ai/scope";
@@ -135,6 +136,30 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     sampleEasyRead: showBuiltins ? SAMPLE_EASY_READ : "",
     showBuiltins,
   };
+}
+
+/**
+ * Every model the provider currently offers, read live with this scope's saved key for
+ * that provider, or the platform's key when the scope has none. Falls back to the
+ * static list when neither exists or the provider cannot be reached. Read only: it
+ * never touches which model is saved.
+ */
+export async function listAiModels(provider: string): Promise<ModelCatalog> {
+  if (!isAiProvider(provider)) return { models: [], live: false };
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) return fallbackModels(provider);
+
+  const column = KEY_COLUMN[provider];
+  const pick = (row: Awaited<ReturnType<typeof readScopeSetting>>): string | null => {
+    const enc = row?.[column] ?? (row?.aiProvider === provider ? row?.aiApiKeyEnc : null);
+    return enc ? decryptWithSecret(enc, env.BETTER_AUTH_SECRET) || null : null;
+  };
+
+  let key = pick(await readScopeSetting(scope));
+  if (!key && scope.tenantId) {
+    key = pick(await prisma.appSetting.findUnique({ where: { id: "singleton" } }));
+  }
+  return listProviderModels(provider, key);
 }
 
 /** Save ONE provider's API key (encrypted), independent of which provider is active.

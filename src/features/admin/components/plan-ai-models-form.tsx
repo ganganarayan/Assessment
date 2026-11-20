@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { setPlanAiModels } from "@/features/admin/actions/platform-integrations";
+import { listAiModels } from "@/features/admin/actions/ai-settings";
 import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, type PlanId } from "@/lib/billing/plans";
-import { MODELS_BY_PROVIDER, type AiProvider } from "@/lib/ai/types";
+import { MODELS_BY_PROVIDER, type AiModelOption, type AiProvider } from "@/lib/ai/types";
 import { DEFAULT_TENANT_AI_MODEL } from "@/lib/ai/plan-models";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,19 @@ export function PlanAiModelsForm({
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const options = MODELS_BY_PROVIDER[provider] ?? [];
+  // The provider's live model list (static fallback until it arrives or if it fails).
+  const [options, setOptions] = useState<AiModelOption[]>(MODELS_BY_PROVIDER[provider] ?? []);
+  useEffect(() => {
+    let cancelled = false;
+    listAiModels(provider)
+      .then((r) => {
+        if (!cancelled) setOptions(r.models);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
 
   const save = () =>
     start(async () => {
