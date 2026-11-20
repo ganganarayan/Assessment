@@ -23,6 +23,7 @@ import {
 import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { sendNurtureForSubmission } from "@/lib/nurture/send";
+import { sendResultLinkEmail } from "@/lib/nurture/result-link-email";
 import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
 import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -1138,8 +1139,26 @@ export async function requestPreviousResults(
     },
   });
 
-  // Only emit when there is a deliverable email address (the CRM emails the link).
+  // Only when there is a deliverable email address. The app emails the link itself,
+  // and the event still fires for any CRM or workflow that listens.
   if (last && last.leadEmail) {
+    const resultUrl = resultUrlFor(
+      await publicOriginFor(assessment.tenant?.id),
+      assessment.targetUrl,
+      assessment.slug,
+      last.id,
+      last.resultToken,
+      last.customerId,
+      await vidapulseParamForTenant(assessment.tenant?.id ?? null),
+    );
+    await sendResultLinkEmail({
+      tenantId: assessment.tenant?.id ?? null,
+      submissionId: last.id,
+      to: last.leadEmail,
+      firstName: last.leadFirstName,
+      assessmentTitle: assessment.title,
+      resultUrl,
+    });
     const total = last.totalScore ?? 0;
     const max = last.maxScore ?? 0;
     const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
@@ -1155,17 +1174,9 @@ export async function requestPreviousResults(
       },
       score: { total, max, percentage },
       resultBand: last.resultBand ? { level: last.resultBand.level, title: last.resultBand.title } : null,
-      // Send the SAME token-gated respondent link completion sends (targetUrl?t=token
-      // &cid=<customerId>), never the admin-only /r/ page. This is what the CRM emails.
-      resultUrl: resultUrlFor(
-        await publicOriginFor(assessment.tenant?.id),
-        assessment.targetUrl,
-        assessment.slug,
-        last.id,
-        last.resultToken,
-        last.customerId,
-        await vidapulseParamForTenant(assessment.tenant?.id ?? null),
-      ),
+      // The SAME token-gated respondent link completion sends (targetUrl?t=token
+      // &cid=<customerId>), never the admin-only /r/ page.
+      resultUrl,
       attribution: normalizeAttribution(last.attribution) ?? undefined,
     } satisfies EmitInput);
   }
