@@ -15,6 +15,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
+import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { defaultRouteOf } from "@/lib/routing/engine";
 import { readExitToken } from "@/lib/billing/exit-link";
 import { resolveAudienceList } from "@/lib/settings/config";
@@ -237,6 +238,15 @@ export default async function PublicAssessmentPage({
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,
     trainingUrl: a.trainingUrl,
+    // The lock screen's "Watch Recommended Training" needs a VSL on the result page:
+    // a video block with a source on the Results page, or on the VSL result page.
+    hasResultVideo:
+      readPublishedPages(a.publishedPages).some((pg) =>
+        pg.blocks.some((b) => b.type === "video" && typeof b.config.embedUrl === "string" && b.config.embedUrl.trim() !== ""),
+      ) ||
+      readResultPage(a.resultPagePublished).blocks.some(
+        (b) => b.type === "video" && typeof b.config.embedCode === "string" && b.config.embedCode.trim() !== "",
+      ),
     retakePolicy: a.retakePolicy,
     retakeDays: a.retakeDays,
     collectFirstName: a.collectFirstName,

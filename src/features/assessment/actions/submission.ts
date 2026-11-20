@@ -28,8 +28,6 @@ import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput, type PayloadCategory, type PayloadGate } from "@/features/events/types";
-import { getCurrentUser } from "@/lib/auth/session";
-import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { isCrawlerUserAgent } from "@/lib/bots";
 import { generateCustomerId, generateToken } from "@/lib/ids";
@@ -84,7 +82,7 @@ import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/l
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { supersedeStoredReport } from "@/lib/reports/store";
-import { isTestRunFor } from "@/lib/funnel/test-link";
+import { previewBypassesLock } from "@/lib/funnel/preview-bypass";
 
 /** The ONE system-level fallback for the result-token TTL (overridable per
  *  assessment). 30 days - long enough that revisits and the emailed result link
@@ -274,6 +272,8 @@ export type StartResult =
       nextAvailableAt: string | null; // null = never (NEVER policy)
       /** A previous result exists AND can be emailed (token + address on file). */
       resultAvailable: boolean;
+      /** The previous run, shown on screen; only ever set for the browser that took it. */
+      resultSubmissionId?: string | null;
     };
 
 /** Load a resuming respondent's prior answers (questionId -> the chosen option id, or
@@ -791,16 +791,9 @@ export async function startSubmission(
   const newEditToken = generateToken();
 
   // Admin preview/testing bypasses the lockout - ONLY when the ?preview=1 flag is
-  // set AND the caller is the authenticated platform owner (never the flag alone).
+  // set AND the caller owns this funnel (see previewBypassesLock; never the flag alone).
   let adminPreview = false;
-  if (preview) {
-    const u = await getCurrentUser();
-    adminPreview = u ? isPlatformOwner(u.email) : false;
-    // The signed test link (lib/funnel/test-link.ts) proves the owner of THIS funnel is
-    // testing, in any workspace and without signing in, so the retake lock steps aside:
-    // the four test paths reuse one email.
-    if (!adminPreview) adminPreview = await isTestRunFor(assessment.id);
-  }
+  if (preview) adminPreview = await previewBypassesLock(assessment);
 
   // Extra opt-in field answers - sanitized + capped (untrusted client input).
   const cleanOptin = optinAnswersInput && typeof optinAnswersInput === "object"
@@ -958,12 +951,12 @@ export async function startSubmission(
         ? await tx.submission.findFirst({
             where: { assessmentId: assessment.id, identifierValue, completedPaidAt: { not: null } },
             orderBy: { completedPaidAt: "desc" },
-            select: { completedPaidAt: true, resultToken: true, leadEmail: true },
+            select: { id: true, completedPaidAt: true, resultToken: true, leadEmail: true, metaExternalId: true },
           })
         : await tx.submission.findFirst({
             where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
             orderBy: { completedAt: "desc" },
-            select: { completedAt: true, resultToken: true, leadEmail: true },
+            select: { id: true, completedAt: true, resultToken: true, leadEmail: true, metaExternalId: true },
           });
       const lockAt = paidMode
         ? (last as { completedPaidAt: Date | null } | null)?.completedPaidAt ?? null
@@ -982,6 +975,10 @@ export async function startSubmission(
           lastCompletedAt: lockAt,
           nextAvailableAt: verdict.nextAvailableAt,
           resultAvailable: Boolean(last?.resultToken && last?.leadEmail),
+          // The previous result is shown on screen ONLY to the browser that took it.
+          // Matching on a typed email alone would show anyone's result to whoever
+          // types their address; that person still gets "Email My Previous Results".
+          resultSubmissionId: last && cleanXid && last.metaExternalId === cleanXid ? last.id : null,
         };
       }
       // Resume the latest UNPAID attempt. Paid mode: a STARTED row OR a completed-
@@ -1034,6 +1031,7 @@ export async function startSubmission(
           lastCompletedAt: outcome.lastCompletedAt?.toISOString() ?? null,
           nextAvailableAt: outcome.nextAvailableAt?.toISOString() ?? null,
           resultAvailable: outcome.resultAvailable,
+          resultSubmissionId: outcome.resultSubmissionId,
         },
       };
     }
@@ -1092,6 +1090,7 @@ export async function startSubmission(
 export async function requestPreviousResults(
   slug: string,
   lead: LeadInput,
+  externalId?: string | null,
 ): Promise<ActionResult> {
   const assessment = await prisma.assessment.findFirst({
     where: { slug, status: "PUBLISHED" },
@@ -1106,17 +1105,23 @@ export async function requestPreviousResults(
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
 
+  // Two ways to name the person: the details typed into the opt-in, or (when the
+  // lock screen came up before the opt-in, see checkReturningVisitor) this browser's
+  // visitor id. Either way the link goes only to the email on THEIR record.
   const parsed = leadSchema.safeParse(lead);
-  if (!parsed.success) return { ok: true }; // generic; never signal validity
-
-  const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, {
-    email: nullifyEmpty(parsed.data.email),
-    mobile: nullifyEmpty(parsed.data.mobile),
-  });
-  if (!identifierValue) return { ok: true };
+  const identifierValue = parsed.success
+    ? normalizeIdentifier(assessment.uniqueIdentifier, {
+        email: nullifyEmpty(parsed.data.email),
+        mobile: nullifyEmpty(parsed.data.mobile),
+      })
+    : null;
+  const xid = typeof externalId === "string" ? externalId.trim().slice(0, 64) : "";
+  if (!identifierValue && !xid) return { ok: true }; // generic; never signal validity
 
   const last = await prisma.submission.findFirst({
-    where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
+    where: identifierValue
+      ? { assessmentId: assessment.id, identifierValue, status: "COMPLETED" }
+      : { assessmentId: assessment.id, metaExternalId: xid, status: "COMPLETED", isPreview: false },
     orderBy: { completedAt: "desc" },
     select: {
       id: true,

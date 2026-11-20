@@ -17,6 +17,8 @@ export type SplitLeadResult =
       nextAvailableAt: string | null; // null = never (NEVER policy)
       /** A previous result exists AND can be emailed (token + address on file). */
       resultAvailable: boolean;
+      /** The previous run, shown on screen; only ever set for the browser that took it. */
+      resultSubmissionId?: string | null;
     };
 
 /** What the phone screen presents to prove it owns the lead row it is completing. */

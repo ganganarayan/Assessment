@@ -185,12 +185,12 @@ export async function captureSplitLead(
       ? await prisma.submission.findFirst({
           where: { assessmentId: assessment.id, identifierValue, completedPaidAt: { not: null } },
           orderBy: { completedPaidAt: "desc" },
-          select: { completedPaidAt: true, resultToken: true, leadEmail: true },
+          select: { id: true, completedPaidAt: true, resultToken: true, leadEmail: true, metaExternalId: true },
         })
       : await prisma.submission.findFirst({
           where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
           orderBy: { completedAt: "desc" },
-          select: { completedAt: true, resultToken: true, leadEmail: true },
+          select: { id: true, completedAt: true, resultToken: true, leadEmail: true, metaExternalId: true },
         });
     const lockAt = assessment.paidMode
       ? (last as { completedPaidAt: Date | null } | null)?.completedPaidAt ?? null
@@ -206,6 +206,8 @@ export async function captureSplitLead(
           lastCompletedAt: lockAt ? lockAt.toISOString() : null,
           nextAvailableAt: verdict.nextAvailableAt ? verdict.nextAvailableAt.toISOString() : null,
           resultAvailable: Boolean(last?.resultToken && last?.leadEmail),
+          // On-screen result only for the browser that took it (see startSubmission).
+          resultSubmissionId: last && vid && last.metaExternalId === vid ? last.id : null,
         },
       };
     }

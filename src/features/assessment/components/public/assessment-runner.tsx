@@ -23,6 +23,7 @@ import { type SplitLeadHandle } from "@/features/assessment/flow/lead-split-io";
 import { captureSplitLead } from "@/features/assessment/actions/lead-split";
 import { normalizePhone, isValidEmail, EMAIL_ERROR } from "@/lib/lead-format";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
+import { checkReturningVisitor } from "@/features/assessment/actions/returning";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
@@ -156,6 +157,8 @@ export interface PublicAssessment {
   preResultFields: PreResultField[];
   estimatedMinutes: number | null;
   trainingUrl: string | null;
+  /** The funnel's result page carries a video (VSL). The training button needs one. */
+  hasResultVideo: boolean;
   retakePolicy: "DELAYED" | "NEVER" | "UNLIMITED";
   retakeDays: number;
   collectFirstName: boolean;
@@ -262,6 +265,8 @@ interface Lockout {
   /** Server-confirmed: a previous result exists and can be emailed. When false the
    *  offer is not made, instead of making it and then hedging about it. */
   resultAvailable: boolean;
+  /** The previous run, shown on screen; only ever set for the browser that took it. */
+  resultSubmissionId?: string | null;
 }
 
 function fmtDate(iso: string | null): string | null {
@@ -526,6 +531,52 @@ export function AssessmentRunner({
    *  "route to the waitlist after the last question", and it carries which answer did
    *  it so the route is reported against a real cause rather than an empty one. */
   const waitlistCauseRef = useRef<{ questionId?: string; optionId?: string } | null>(null);
+
+  /**
+   * Turn a "locked" answer into the locked screen. When the server named this
+   * browser's previous run and the funnel shows results on Assess360, that result is
+   * loaded and rendered under the notice.
+   */
+  function applyLockout(data: Lockout) {
+    setLockout(data);
+    setStep("locked");
+    if (data.resultSubmissionId && assessment.nextStep === "RESULTS" && assessment.pages.length > 0) {
+      void getResultForPages(data.resultSubmissionId).then((r) => {
+        if (r.ok && r.data) setPageResult(r.data);
+      });
+    }
+  }
+
+  // Returning visitor: this browser already completed the funnel and is inside the
+  // retake lock. Told BEFORE the first question, not after the opt-in. When the browser
+  // has no match, the opt-in match in startSubmission still runs as before.
+  const returningCheckedRef = useRef(false);
+  const stepRef = useRef(step);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+  useEffect(() => {
+    if (returningCheckedRef.current) return;
+    returningCheckedRef.current = true;
+    if (assessment.retakePolicy === "UNLIMITED" || assessment.platformSignup) return;
+    const xid = getOrCreateExternalId();
+    if (!xid) return;
+    void checkReturningVisitor(assessment.slug, xid, !!preview).then((r) => {
+      if (!r.ok || !r.data?.locked || !r.data.policy) return;
+      const data = r.data;
+      // Only while nothing has been answered yet; never yank someone mid-run.
+      const cur = stepRef.current;
+      if (cur !== "qualify" && cur !== "gate" && cur !== "intro" && cur !== "leadForm" && cur !== "details") return;
+      applyLockout({
+        policy: data.policy as "DELAYED" | "NEVER",
+        lastCompletedAt: data.lastCompletedAt ?? null,
+        nextAvailableAt: data.nextAvailableAt ?? null,
+        resultAvailable: !!data.resultAvailable,
+        resultSubmissionId: data.resultSubmissionId ?? null,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
   // straight to the exit page without seeing the questions again. Checked after mount
@@ -851,13 +902,7 @@ export function AssessmentRunner({
           goToSignup();
           return;
         }
-        setLockout({
-          policy: res.data.policy,
-          lastCompletedAt: res.data.lastCompletedAt,
-          nextAvailableAt: res.data.nextAvailableAt,
-          resultAvailable: res.data.resultAvailable,
-        });
-        setStep("locked");
+        applyLockout(res.data);
         return;
       }
       // An OPTIN exit ends here: details captured, the exit's content is the thank-you.
@@ -1183,7 +1228,7 @@ export function AssessmentRunner({
   function emailPreviousResults() {
     setError(null);
     start(async () => {
-      const res = await requestPreviousResults(assessment.slug, lead);
+      const res = await requestPreviousResults(assessment.slug, lead, getOrCreateExternalId());
       if (!res.ok) {
         setError(res.error);
         return;
@@ -1287,13 +1332,7 @@ export function AssessmentRunner({
           goToSignup();
           return;
         }
-        setLockout({
-          policy: res.data.policy,
-          lastCompletedAt: res.data.lastCompletedAt,
-          nextAvailableAt: res.data.nextAvailableAt,
-          resultAvailable: res.data.resultAvailable,
-        });
-        setStep("locked");
+        applyLockout(res.data);
         return;
       }
       if (res.data?.status === "captured") {
@@ -1355,13 +1394,7 @@ export function AssessmentRunner({
         return;
       }
       if (res.data?.status === "locked") {
-        setLockout({
-          policy: res.data.policy,
-          lastCompletedAt: res.data.lastCompletedAt,
-          nextAvailableAt: res.data.nextAvailableAt,
-          resultAvailable: res.data.resultAvailable,
-        });
-        setStep("locked");
+        applyLockout(res.data);
         return;
       }
       if (res.data?.status === "started" && res.data.eventId) {
@@ -2377,7 +2410,7 @@ export function AssessmentRunner({
               </Button>
             )
           ) : null}
-          {assessment.trainingUrl ? (
+          {assessment.trainingUrl && assessment.hasResultVideo ? (
             <a
               href={assessment.trainingUrl}
               target="_blank"
@@ -2389,6 +2422,20 @@ export function AssessmentRunner({
           ) : null}
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
+
+        {/* Their previous result, when the funnel shows results on Assess360. The pay
+            button is left out: this is a result they already have. */}
+        {pageResult && assessment.nextStep === "RESULTS" && assessment.pages.length > 0 ? (
+          <div className="border-t pt-6" data-qa-previous-result>
+            <ResultPages
+              pages={assessment.pages.map((pg) => ({ ...pg, blocks: pg.blocks.filter((b) => b.type !== "pay_button") }))}
+              result={pageResult}
+              onPay={() => {}}
+              payPending={false}
+              payError={null}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }

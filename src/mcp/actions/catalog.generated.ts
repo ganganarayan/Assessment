@@ -4130,6 +4130,33 @@ export const ACTION_CATALOG: readonly CatalogEntry[] = [
     "doc": "Unpublish: clear the live snapshot so the result page falls back to the score cards. The draft is kept, so Publish later restores the page."
   },
   {
+    "id": "assessment.returning.checkReturningVisitor",
+    "module": "@/features/assessment/actions/returning",
+    "fn": "checkReturningVisitor",
+    "file": "src/features/assessment/actions/returning.ts",
+    "kind": "write",
+    "destructive": false,
+    "params": [
+      {
+        "name": "slug",
+        "type": "string",
+        "optional": false
+      },
+      {
+        "name": "externalId",
+        "type": "string | null",
+        "optional": false
+      },
+      {
+        "name": "preview",
+        "type": "boolean",
+        "optional": false
+      }
+    ],
+    "returns": "Promise<ActionResult<ReturningVisitor>>",
+    "doc": ""
+  },
+  {
     "id": "assessment.routing.setQuestionRoutes",
     "module": "@/features/assessment/actions/routing",
     "fn": "setQuestionRoutes",
@@ -8945,6 +8972,7 @@ export const ACTION_LOADERS: Record<string, () => Promise<Record<string, unknown
   "@/features/assessment/actions/question": () => import("@/features/assessment/actions/question") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/result-band": () => import("@/features/assessment/actions/result-band") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/result-page": () => import("@/features/assessment/actions/result-page") as Promise<Record<string, unknown>>,
+  "@/features/assessment/actions/returning": () => import("@/features/assessment/actions/returning") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/routing": () => import("@/features/assessment/actions/routing") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/test-runs": () => import("@/features/assessment/actions/test-runs") as Promise<Record<string, unknown>>,
   "@/features/assessment/actions/transfer": () => import("@/features/assessment/actions/transfer") as Promise<Record<string, unknown>>,
