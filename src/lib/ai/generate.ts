@@ -7,7 +7,8 @@ import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE, NEUTRAL_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
 import { builtInPromptsAllowed } from "@/lib/ai/scope";
-import { DEFAULT_MODEL, isAiProvider, type AiConfig, type AiProvider, type StatementInput } from "@/lib/ai/types";
+import { featureAllowedFor } from "@/lib/features/release";
+import { DEFAULT_MODEL, isAiProvider, modelFitsProvider, type AiConfig, type AiProvider, type StatementInput } from "@/lib/ai/types";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
@@ -131,8 +132,16 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
     const platformKey = platform ? keyFromRow(platform) : null;
     if (!platformKey) return null;
     const resolved = await resolvePlan(tenantId);
+    // The workspace's own pick from /w/ai counts only while the release switch allows
+    // this workspace, and only if it belongs to the provider the platform key is for.
+    const picked = own?.aiWorkspaceModel?.trim() || null;
+    const workspacePick =
+      picked && modelFitsProvider(picked, platformKey.provider) && (await featureAllowedFor("liveAiModels", tenantId))
+        ? picked
+        : null;
     const model = modelForTenant({
       override: tenant?.aiModelOverride,
+      workspacePick,
       plan: resolved.plan,
       planModels: parsePlanModels(platform?.aiPlanModels ?? null),
     });

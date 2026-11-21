@@ -210,9 +210,9 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     key: "liveAiModels",
     label: "Live AI model list",
     blurb:
-      "The Model dropdown in AI settings lists every model the provider offers right now, read live with the saved key, newest first.",
+      "Every workspace gets a Model picker on its AI page, listing every model the provider offers right now (read live, newest first), and its pick is the model that writes its statements.",
     whileHeld:
-      "The Model dropdown shows the built-in list instead. A model already saved stays selected and keeps working, and Custom still takes any model id.",
+      "Customer workspaces see no Model picker and generate on their plan's model; a pick they saved is kept but not used until release. Super admin and internal workspaces keep the picker and the live list.",
     // Held back so the owner can prove the live read on an internal workspace before a
     // customer's dropdown depends on a provider call. Nothing is lost while it is off.
     defaultReleased: false,

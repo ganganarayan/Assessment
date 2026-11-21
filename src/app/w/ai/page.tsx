@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getAiSettings } from "@/features/admin/actions/ai-settings";
+import { getAiSettings, getWorkspaceModelView } from "@/features/admin/actions/ai-settings";
+import { WorkspaceModelForm } from "@/features/admin/components/workspace-model-form";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import { requireWorkspace, canEdit } from "@/lib/auth/guards";
 import { ViewOnly } from "@/components/view-only";
@@ -56,7 +57,8 @@ export default async function WorkspaceAiPage() {
     );
   }
 
-  const settings = await getAiSettings();
+  // Null while the liveAiModels release switch holds this workspace back.
+  const [settings, modelView] = await Promise.all([getAiSettings(), getWorkspaceModelView()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,6 +71,23 @@ export default async function WorkspaceAiPage() {
           and shown on the result page. The model and its connection are managed for you.
         </p>
       </div>
+
+      {modelView ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Model</CardTitle>
+            <CardDescription>
+              The model that writes each result message.{" "}
+              {modelView.ownKey
+                ? "Your workspace runs on its own key, so this is the model that key calls."
+                : "Default uses the model set for your plan."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WorkspaceModelForm view={modelView} readOnly={readOnly} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

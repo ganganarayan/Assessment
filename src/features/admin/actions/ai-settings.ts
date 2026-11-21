@@ -6,9 +6,12 @@ import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied, scopeOwnerDenied, configTenantOf, type ActingScope } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
-import { isAiProvider, type AiProvider } from "@/lib/ai/types";
+import { DEFAULT_MODEL as DEFAULT_MODEL_FOR, isAiProvider, modelFitsProvider, type AiProvider } from "@/lib/ai/types";
+import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { listProviderModels, fallbackModels, type ModelCatalog } from "@/lib/ai/model-catalog";
-import { featureAllowedFor } from "@/lib/features/release";
+import { featureAllowedFor, featureDenied } from "@/lib/features/release";
 import { testStatement } from "@/lib/ai/generate";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { builtInPromptsAllowed } from "@/lib/ai/scope";
@@ -164,6 +167,89 @@ export async function listAiModels(provider: string): Promise<ModelCatalog> {
     key = pick(await prisma.appSetting.findUnique({ where: { id: "singleton" } }));
   }
   return listProviderModels(provider, key);
+}
+
+export interface WorkspaceModelView {
+  provider: AiProvider;
+  /** The saved pick; "" = the default below. */
+  model: string;
+  /** What runs when nothing is picked: the plan's model, or the provider default. */
+  defaultModel: string;
+  /** True = the workspace runs on its own key, so the pick is its own aiModel. */
+  ownKey: boolean;
+}
+
+function decryptedKey(
+  row: Awaited<ReturnType<typeof readScopeSetting>>,
+  provider: AiProvider,
+): string | null {
+  const enc = row?.[KEY_COLUMN[provider]] ?? (row?.aiProvider === provider ? row?.aiApiKeyEnc : null);
+  return enc ? decryptWithSecret(enc, env.BETTER_AUTH_SECRET) || null : null;
+}
+
+/**
+ * The Model picker on /w/ai. Null = no picker: the platform scope (it has /admin/ai),
+ * or the liveAiModels release switch holds this workspace back. Released, every
+ * workspace gets it; held, only the platform and internal workspaces.
+ *
+ * Two destinations, decided by whose key runs the statement:
+ *   own key      - the workspace's aiModel, the same field /admin/ai edits inside it
+ *   platform key - aiWorkspaceModel, read by generate.ts under the same switch, below
+ *                  the owner's per-tenant override and above the plan's model
+ */
+export async function getWorkspaceModelView(): Promise<WorkspaceModelView | null> {
+  const scope = await resolveActingScope();
+  if (!scope.tenantId || isPlatformScope(scope.tenantId)) return null;
+  if (!(await featureAllowedFor("liveAiModels", scope.tenantId))) return null;
+
+  const own = await readScopeSetting(scope);
+  const ownProvider = own?.aiProvider && isAiProvider(own.aiProvider) ? own.aiProvider : null;
+  if (ownProvider && decryptedKey(own, ownProvider)) {
+    return { provider: ownProvider, model: own?.aiModel ?? "", defaultModel: DEFAULT_MODEL_FOR[ownProvider], ownKey: true };
+  }
+
+  const platform = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
+  const provider = platform?.aiProvider && isAiProvider(platform.aiProvider) ? platform.aiProvider : "claude";
+  const [resolved, tenant] = await Promise.all([
+    resolvePlan(scope.tenantId),
+    prisma.tenant.findUnique({ where: { id: scope.tenantId }, select: { aiModelOverride: true } }),
+  ]);
+  const defaultModel = modelForTenant({
+    override: tenant?.aiModelOverride,
+    plan: resolved.plan,
+    planModels: parsePlanModels(platform?.aiPlanModels ?? null),
+  });
+  return { provider, model: own?.aiWorkspaceModel ?? "", defaultModel, ownKey: false };
+}
+
+const workspaceModelSchema = z.string().trim().max(120);
+
+/** Save the /w/ai Model pick. Blank = back to the default. */
+export async function saveWorkspaceModel(model: string): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  if (!scope.tenantId || isPlatformScope(scope.tenantId)) return { ok: false, error: "No workspace." };
+  const held = await featureDenied("liveAiModels", scope.tenantId);
+  if (held) return held;
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  const parsed = workspaceModelSchema.safeParse(model ?? "");
+  if (!parsed.success) return { ok: false, error: "That model id looks too long." };
+
+  const view = await getWorkspaceModelView();
+  if (!view) return { ok: false, error: "That is not available in your workspace." };
+  const value = parsed.data || null;
+  if (value && !modelFitsProvider(value, view.provider)) {
+    return { ok: false, error: "That model belongs to a different provider." };
+  }
+
+  const data = view.ownKey ? { aiModel: value } : { aiWorkspaceModel: value };
+  await prisma.appSetting.upsert({
+    where: { tenantId: scope.tenantId },
+    update: data,
+    create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), ...data },
+  });
+  revalidatePath("/w/ai");
+  return { ok: true };
 }
 
 /** Save ONE provider's API key (encrypted), independent of which provider is active.

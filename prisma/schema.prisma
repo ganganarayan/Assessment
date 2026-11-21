@@ -2795,6 +2795,12 @@ model AppSetting {
   // (Haiku), so the column being empty is a working configuration, not a broken one.
   aiPlanModels Json?
 
+  // The model a workspace on the PLATFORM's key picked for itself on /w/ai. Read only
+  // while the liveAiModels release switch allows that workspace, so holding the switch
+  // back returns every customer to their plan's model. The owner's per-tenant override
+  // (Tenant.aiModelOverride) still wins. A workspace with its own key uses aiModel.
+  aiWorkspaceModel String?
+
   // WHATSAPP, parked. Meaningful only on the singleton row. The WABA sender works but
   // needs real work before it is handed to customers: template approval, per-tenant
   // numbers and the failure modes that come with both. Hiding it is the honest state,

@@ -36,18 +36,23 @@ export function parsePlanModels(raw: unknown): PlanModels {
 /**
  * The model for one tenant, most specific first:
  *   1. the per-tenant override (the owner's decision about this account),
- *   2. the binding for its plan,
- *   3. the code default.
+ *   2. the workspace's own pick on /w/ai (the caller passes it only while the
+ *      liveAiModels release switch allows that workspace),
+ *   3. the binding for its plan,
+ *   4. the code default.
  *
  * A trial resolves as whatever plan the trial grants, because a trial is Signal.
  */
 export function modelForTenant(opts: {
   override: string | null | undefined;
+  workspacePick?: string | null;
   plan: PlanId | null;
   planModels: PlanModels;
 }): string {
   const override = opts.override?.trim();
   if (override) return override;
+  const pick = opts.workspacePick?.trim();
+  if (pick) return pick;
   const byPlan = opts.plan ? opts.planModels[opts.plan]?.trim() : undefined;
   if (byPlan) return byPlan;
   return DEFAULT_TENANT_AI_MODEL;

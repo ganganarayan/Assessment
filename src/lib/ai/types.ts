@@ -51,6 +51,18 @@ export function isAiProvider(v: string): v is AiProvider {
   return (AI_PROVIDERS as string[]).includes(v);
 }
 
+/** Model id families per provider. A model saved for one provider must never be sent
+ *  to another's key: a stale "gpt-4o" against a Claude key fails every statement. */
+const MODEL_FAMILY: Record<AiProvider, RegExp> = {
+  claude: /^claude-/,
+  openai: /^(gpt-|o\d|chatgpt-)/,
+  gemini: /^gemini-/,
+};
+
+export function modelFitsProvider(model: string, provider: AiProvider): boolean {
+  return MODEL_FAMILY[provider].test(model.trim());
+}
+
 /** Resolved, decrypted config used to call a provider. */
 export interface AiConfig {
   provider: AiProvider;
