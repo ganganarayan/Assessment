@@ -2,7 +2,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { MARKETING, NAV_LINKS, SECTION_LINKS, navHref } from "@/lib/marketing/content";
+import { MARKETING, NAV_LINKS, SECTION_LINKS, QUALIFIED_COST, navHref } from "@/lib/marketing/content";
 import { getCta } from "@/lib/settings/cta";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { PlatformPixel } from "@/components/platform-pixel";
@@ -124,6 +124,28 @@ export async function Nav({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* The calculator badge. book-glow is the pulsing ring the trial ribbon uses, and
+              it stops for anyone who asked their device for reduced motion. It points at
+              the landing page's #calculator, so on other pages it goes to "/#calculator". */}
+          <a
+            href={anchorBase ? `${anchorBase}#calculator` : "#calculator"}
+            className="book-glow inline-flex shrink-0 items-center gap-1.5 rounded-full border border-green-600/50 bg-green-600/10 px-2.5 py-1 text-xs font-medium text-green-800 hover:bg-green-600/20 dark:text-green-400"
+            aria-label={QUALIFIED_COST.navBadge}
+          >
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <line x1="8" y1="6" x2="16" y2="6" />
+              <line x1="8" y1="11" x2="8" y2="11" />
+              <line x1="12" y1="11" x2="12" y2="11" />
+              <line x1="16" y1="11" x2="16" y2="11" />
+              <line x1="8" y1="15" x2="8" y2="15" />
+              <line x1="12" y1="15" x2="12" y2="15" />
+              <line x1="16" y1="15" x2="16" y2="18" />
+              <line x1="8" y1="18" x2="12" y2="18" />
+            </svg>
+            <span className="hidden lg:inline">{QUALIFIED_COST.navBadge}</span>
+            <span className="hidden sm:inline lg:hidden">{QUALIFIED_COST.navBadgeShort}</span>
+          </a>
           {/* Hidden on a phone, where the first row only has room for the logo and the
               CTA; the theme still follows the device setting there. */}
           <span className="hidden sm:inline-flex">

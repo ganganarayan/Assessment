@@ -12,6 +12,7 @@ import { HowItWorks } from "./HowItWorks";
 import { Capabilities } from "./Capabilities";
 import { Mechanism } from "./Mechanism";
 import { RealCost } from "./RealCost";
+import { QualifiedCost } from "./QualifiedCost";
 import { NoGoodLeadLost } from "./NoGoodLeadLost";
 import { BuiltWithYou } from "./BuiltWithYou";
 import { UseCases } from "./UseCases";
@@ -93,6 +94,9 @@ export async function Landing({
             answers a premise the reader has to accept before any of them matter: that a
             lead who will never buy is expensive, and expensive monthly. */}
         <DisqualifiedCost />
+        {/* Section three: the reader prices their own leads. The nav's flashing badge
+            scrolls here (#calculator). */}
+        <QualifiedCost />
         {/* Then the same bill as arithmetic rather than a list - 40 calls, half of them
             wrong, 15 hours. The itemisation says what the charges ARE; this says what
             they come to. Both ask for nothing, because they are earning the attention

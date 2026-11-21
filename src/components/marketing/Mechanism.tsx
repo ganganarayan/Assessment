@@ -1,4 +1,4 @@
-import { PILLARS } from "@/lib/marketing/content";
+import { PILLARS, META_QUALITY_STAT } from "@/lib/marketing/content";
 
 /**
  * "Gate, Score, Signal" - the mechanism, on its own, high on the page.
@@ -20,6 +20,13 @@ export function Mechanism() {
             Three steps, in order. The first two keep your calendar clean. The third is the one no
             other assessment tool does, and it is the one that lowers what you pay per qualified
             lead.
+          </p>
+          {/* Meta's number, labelled as Meta's. It backs the third step and promises nothing of ours. */}
+          <p className="mt-3 text-sm text-[var(--muted-foreground)]">
+            {META_QUALITY_STAT.text}{" "}
+            <a href={META_QUALITY_STAT.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+              Source: {META_QUALITY_STAT.source}
+            </a>
           </p>
         </div>
 

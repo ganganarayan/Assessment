@@ -801,6 +801,56 @@ export const DISQUALIFIED_COST = {
  * So the count is open-ended here and the arithmetic stays, because that is the half this
  * section does that a list cannot: what the charges come to in a month.
  */
+/**
+ * The qualified-lead calculator, section three of the landing page.
+ *
+ * Meta reports cost per lead. The buyer pays per qualified call, and the gap between the
+ * two is the argument for a gate. Every figure on the result is the visitor's own
+ * arithmetic over what they typed: no modelled uplift, no "with Assess360" projection,
+ * because a number we invented is the one a sceptical reader throws the page away over.
+ *
+ * Defaults are rupees (see marketing/currency.ts for the dollar conversion of spend).
+ */
+export const QUALIFIED_COST = {
+  eyebrow: "CALCULATOR",
+  heading: "What does a qualified lead really cost you?",
+  lead: "Meta shows you cost per lead. This shows what you pay for a lead worth a call.",
+  navBadge: "What do your leads really cost?",
+  navBadgeShort: "Calculator",
+  defaults: { spendInr: 100000, leads: 400, pickupPct: 50, fitPct: 30, showPct: 60 },
+  labels: {
+    spend: "Monthly ad spend",
+    leads: "Leads a month",
+    pickup: "Of those, % who pick up or reply",
+    fit: "Of those, % who are a real fit",
+    show: "Of the fit ones, % who show up for the call",
+  },
+  results: {
+    cpl: "Cost per lead, what Meta shows",
+    cpq: "Cost per qualified call",
+    wasted: "Spend that bought no qualified call, a month",
+    qualified: "Qualified calls a month",
+  },
+  bigLine: (cpq: string, multiple: string) => `${cpq} per qualified call. ${multiple}x what Meta shows you.`,
+  note: "Your numbers, your arithmetic. Nothing is estimated for you.",
+  gateHeading: "What a gate changes",
+  gatePoints: [
+    { strong: "Wrong-fit people never become leads.", text: "They are routed to an exit page before the form, so there is nothing to call." },
+    { strong: "Meta is told who is not a fit,", text: "so it stops buying more of them." },
+  ],
+} as const;
+
+/**
+ * Meta's own published figure, quoted as theirs. It is about sending lead QUALITY back to
+ * Meta (CRM conversion leads), which is the Signal step, and it is labelled with its source
+ * so it can never be read as a promise of ours.
+ */
+export const META_QUALITY_STAT = {
+  text: "Meta reports up to 21% lower cost per quality lead when advertisers send lead quality back to it.",
+  source: "Meta, via Make.com",
+  href: "https://www.make.com/en/blog/meta-make-conversions-api-for-crm",
+} as const;
+
 export const REAL_COST = {
   heading: "A bad lead is not a cost. It's a draining subscription.",
   lead: "The click is the only part you can see, and it is the cheapest thing on the list above. Everything after it recurs.",
