@@ -51,6 +51,10 @@ import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
 // social media manager with clients pass alongside the busy owner. The destination is
 // a placeholder the owner points at the Content Engine onboarding after import.
 import content360BuyerGate from "./content360-buyer-gate.json";
+// Platform-owned: the SHORT front door beside the junk-leads gate. Five questions, no
+// bands and no points, so every answer is a plain pass or a named exit. Built for organic
+// traffic, where a two-minute gate loses people before they reach the trial.
+import platformAdSpendGate from "./platform-ad-spend-gate.json";
 // Two instruments in one funnel: Part A (how the last programme was bought) carries a
 // near-zero weight so it bands on its own without moving the Part B headline, and the
 // override rules live in the AI instructions because the engine has no rule layer.
@@ -95,4 +99,5 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   cancellationExitWhyYouLeft,
   platformJunkLeadsGate,
   content360BuyerGate,
+  platformAdSpendGate,
 ];

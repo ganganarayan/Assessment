@@ -1,0 +1,197 @@
+{
+  "slug": "platform-ad-spend-gate",
+  "title": "Ad spend: is it reaching the right people",
+  "category": "Platform",
+  "summary": "The platform's own short qualifier, gate only and unscored. Five questions, every answer either passes or routes to a named exit, and passing starts the trial. Not-yet people land on the waitlist, wrong-fit people on one of three named exits.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "title": "Is your ad spend reaching the right people?",
+    "slug": "ad-spend-right-people-gate",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 1,
+    "thankYouMessage": null,
+    "eyebrow": "IF YOU RUN ADS FOR LEADS",
+    "subheadline": "Five questions. About 45 seconds.",
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "firstNameLabel": "Your name",
+    "emailLabel": "Email",
+    "mobileLabel": "WhatsApp number (with country code)",
+    "leadCaptureAfter": true,
+    "leadCaptureMode": "ALL_AT_ONCE",
+    "startButtonLabel": "Start",
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "useAiStatement": false,
+    "nextStep": "DESTINATION",
+    "targetUrl": "/sign-up",
+    "platformSignup": true,
+    "questionDisplayMode": "SINGLE",
+    "retakePolicy": "NEVER",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "fireMetaCapi": true,
+    "metaEvents": {
+      "registration": true,
+      "completion": true,
+      "gateDisqualified": true,
+      "abandoned": false,
+      "gateIncomplete": true,
+      "gatePassed": false
+    },
+    "qualification": {
+      "enabled": true,
+      "showResultOfGate": false,
+      "bands": {
+        "enabled": false,
+        "passMin": 0,
+        "reviewMin": 0,
+        "belowExitKey": "waitlist"
+      },
+      "questions": [
+        {
+          "id": "q1",
+          "text": "Are you running paid ads for leads right now?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "q1a", "label": "Yes, on Meta (Facebook / Instagram)", "points": 0 },
+            { "id": "q1b", "label": "Yes, on Google or another platform", "points": 0 },
+            { "id": "q1c", "label": "Starting in the next 30 days", "points": 0, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "q1d", "label": "No", "points": 0, "disqualifies": true, "exitKey": "no_ads" }
+          ]
+        },
+        {
+          "id": "q2",
+          "text": "What is your monthly ad spend?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "q2a", "label": "Under ₹25,000", "points": 0, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "q2b", "label": "₹25,000 to ₹50,000", "points": 0 },
+            { "id": "q2c", "label": "₹50,000 to ₹1,00,000", "points": 0 },
+            { "id": "q2d", "label": "₹1,00,000 to ₹5,00,000", "points": 0 },
+            { "id": "q2e", "label": "Over ₹5,00,000", "points": 0 }
+          ]
+        },
+        {
+          "id": "q3",
+          "text": "Who runs the ads?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "q3a", "label": "I run them for my own business", "points": 0 },
+            { "id": "q3b", "label": "My team or an in-house marketer", "points": 0 },
+            { "id": "q3c", "label": "I am an agency or freelancer running them for clients", "points": 0 },
+            { "id": "q3d", "label": "I am learning, not running any yet", "points": 0, "disqualifies": true, "exitKey": "not_a_buyer" }
+          ]
+        },
+        {
+          "id": "q4",
+          "text": "What does a new client pay you?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "q4a", "label": "Over ₹20,000", "points": 0 },
+            { "id": "q4b", "label": "₹5,000 to ₹20,000", "points": 0 },
+            { "id": "q4c", "label": "Under ₹5,000, or I sell products online", "points": 0, "disqualifies": true, "exitKey": "low_ticket" }
+          ]
+        },
+        {
+          "id": "q5",
+          "text": "What hurts most right now?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "q5a", "label": "Too many leads who are not a fit", "points": 0 },
+            { "id": "q5b", "label": "Leads do not pick up or do not show up", "points": 0 },
+            { "id": "q5c", "label": "Not enough leads at all", "points": 0, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "q5d", "label": "Just exploring", "points": 0, "disqualifies": true, "exitKey": "waitlist" }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "This isn't built for you, and that's the point.",
+      "subtext": "Assess360 exists to stop businesses paying Meta to talk to the wrong people.",
+      "bodyHtml": "<p>That screen you just hit fired a signal telling Meta not to show you this ad again. No lead stored, nothing in anyone's CRM, no follow-up. That is the product you just used.</p>",
+      "buttonLabel": "Back to the main page",
+      "buttonUrl": "/",
+      "fireDisqualifiedEvent": true,
+      "exits": [
+        {
+          "key": "no_ads",
+          "name": "No ads",
+          "mode": "PAGE",
+          "heading": "This isn't built for you, and that's the point.",
+          "subtext": "Assess360 exists to stop businesses paying Meta to talk to the wrong people.",
+          "bodyHtml": "<p>It works on paid traffic, and you are not running any. That screen you just hit fired a signal telling Meta not to show you this ad again. No lead stored, nothing in anyone's CRM, no follow-up. That is the product you just used.</p>",
+          "buttonLabel": "Back to the main page",
+          "buttonUrl": "/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateDisqualified",
+          "contentCategory": "no_ads",
+          "completionEventName": "",
+          "neverExclude": false
+        },
+        {
+          "key": "not_a_buyer",
+          "name": "Not a buyer",
+          "mode": "PAGE",
+          "heading": "This isn't built for you yet.",
+          "subtext": "It is built for people already paying for leads.",
+          "bodyHtml": "<p>Once you are running ads for a business, this is the same door. That screen you just hit fired a signal telling Meta not to show you this ad again. No lead stored, no follow-up. That is the product you just used.</p>",
+          "buttonLabel": "Back to the main page",
+          "buttonUrl": "/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateDisqualified",
+          "contentCategory": "not_a_buyer",
+          "completionEventName": "",
+          "neverExclude": false
+        },
+        {
+          "key": "low_ticket",
+          "name": "Low ticket",
+          "mode": "PAGE",
+          "heading": "This isn't built for your kind of sale.",
+          "subtext": "It pays off where every sales call is worth a lot.",
+          "bodyHtml": "<p>Filtering leads before a call matters when a client is worth more than a call costs. At a low ticket or with products sold online, a checkout does that job better. That screen you just hit fired a signal telling Meta not to show you this ad again. That is the product you just used.</p>",
+          "buttonLabel": "Back to the main page",
+          "buttonUrl": "/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateDisqualified",
+          "contentCategory": "low_ticket",
+          "completionEventName": "",
+          "neverExclude": false
+        },
+        {
+          "key": "waitlist",
+          "name": "Waitlisted",
+          "mode": "OPTIN",
+          "heading": "Not a no. A not yet.",
+          "subtext": "The fit is there. The timing is the one thing nobody can fix from this end.",
+          "bodyHtml": "<p>You keep your place, and we have your details, so this is a list with you actually on it. You are not going on any exclusion list either. When the piece that is missing today is in place, it is the same door.</p><p>If you want to look around in the meantime, the trial is open and nothing about it depends on this answer.</p>",
+          "buttonLabel": "Start the 14-day trial",
+          "buttonUrl": "/sign-up",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateWaitlisted",
+          "contentCategory": "not_yet",
+          "completionEventName": "",
+          "neverExclude": true
+        }
+      ]
+    },
+    "categories": [],
+    "resultBands": []
+  }
+}
