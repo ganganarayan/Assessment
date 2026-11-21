@@ -92,10 +92,17 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const [customModel, setCustomModel] = useState(false);
   // The provider's live model list, fetched with the saved key. Starts on the static
   // fallback so the dropdown is never empty while it loads.
-  const [catalog, setCatalog] = useState<{ provider: AiProvider; models: AiModelOption[]; live: boolean }>({
+  const [catalog, setCatalog] = useState<{
+    provider: AiProvider;
+    models: AiModelOption[];
+    live: boolean;
+    source: string;
+    detail?: string;
+  }>({
     provider: initial.provider,
     models: MODELS_BY_PROVIDER[initial.provider],
     live: false,
+    source: "no-key",
   });
   const [loadingModels, setLoadingModels] = useState(true);
   const [guidance, setGuidance] = useState(initial.guidance);
@@ -108,10 +115,11 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
     let cancelled = false;
     listAiModels(provider)
       .then((r) => {
-        if (!cancelled) setCatalog({ provider, models: r.models, live: r.live });
+        if (!cancelled) setCatalog({ provider, models: r.models, live: r.live, source: r.source, detail: r.detail });
       })
       .catch(() => {
-        if (!cancelled) setCatalog({ provider, models: MODELS_BY_PROVIDER[provider], live: false });
+        if (!cancelled)
+          setCatalog({ provider, models: MODELS_BY_PROVIDER[provider], live: false, source: "error", detail: "the app could not be reached" });
       })
       .finally(() => {
         if (!cancelled) setLoadingModels(false);
@@ -216,7 +224,11 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
               ? "Loading the models this provider offers…"
               : catalog.live && catalog.provider === provider
                 ? `Every model ${PROVIDER_LABEL[provider]} offers right now, newest first (${listed.length}).`
-                : "Showing the built-in list: save a key above to see every model this provider offers."}
+                : catalog.provider === provider && catalog.source === "error"
+                  ? `Showing the built-in list: ${PROVIDER_LABEL[provider]} did not return its models (${catalog.detail ?? "unknown error"}). Custom takes any model id.`
+                  : catalog.provider === provider && catalog.source === "held"
+                    ? "Showing the built-in list. Custom takes any model id."
+                    : "Showing the built-in list: save a key above to see every model this provider offers."}
           </p>
           {customModel ? (
             <Input

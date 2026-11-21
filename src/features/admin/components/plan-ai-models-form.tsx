@@ -35,13 +35,26 @@ export function PlanAiModelsForm({
 
   // The provider's live model list (static fallback until it arrives or if it fails).
   const [options, setOptions] = useState<AiModelOption[]>(MODELS_BY_PROVIDER[provider] ?? []);
+  const [listNote, setListNote] = useState<string>("Loading the models this provider offers…");
   useEffect(() => {
     let cancelled = false;
     listAiModels(provider)
       .then((r) => {
-        if (!cancelled) setOptions(r.models);
+        if (cancelled) return;
+        setOptions(r.models);
+        setListNote(
+          r.live
+            ? `Every model the provider offers right now, newest first (${r.models.length}).`
+            : r.source === "error"
+              ? `Showing the built-in list: the provider did not return its models (${r.detail ?? "unknown error"}).`
+              : r.source === "held"
+                ? "Showing the built-in list."
+                : "Showing the built-in list: save the platform key above to see every model.",
+        );
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setListNote("Showing the built-in list: the app could not be reached.");
+      });
     return () => {
       cancelled = true;
     };
@@ -93,6 +106,7 @@ export function PlanAiModelsForm({
           );
         })}
       </div>
+      <p className="text-xs text-[var(--muted-foreground)]">{listNote}</p>
       <div className="flex items-center gap-3">
         <Button size="sm" onClick={save} disabled={pending}>
           {pending ? "Saving…" : "Save model bindings"}

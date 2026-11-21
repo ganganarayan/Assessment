@@ -22,24 +22,41 @@ const MAX_PAGES = 10;
 
 const cache = new Map<string, { at: number; models: AiModelOption[] }>();
 
+/**
+ * Why the list is what it is. The settings screen says this under the dropdown, so the
+ * next time the live list does not appear the screen answers why instead of a guess:
+ *   live    - read from the provider just now (or within the hour)
+ *   held    - the live list is not released to this workspace (release switch)
+ *   no-key  - neither this scope nor the platform has a key saved for this provider
+ *   error   - the provider call failed; `detail` carries the HTTP status or message
+ */
+export type ModelCatalogSource = "live" | "held" | "no-key" | "error";
+
 export interface ModelCatalog {
   models: AiModelOption[];
   /** True when the list came from the provider; false means the static fallback. */
   live: boolean;
+  source: ModelCatalogSource;
+  /** For `error`: what the provider said, short and key-free. */
+  detail?: string;
 }
 
-export function fallbackModels(provider: AiProvider): ModelCatalog {
-  return { models: MODELS_BY_PROVIDER[provider], live: false };
+export function fallbackModels(
+  provider: AiProvider,
+  source: Exclude<ModelCatalogSource, "live"> = "no-key",
+  detail?: string,
+): ModelCatalog {
+  return { models: MODELS_BY_PROVIDER[provider], live: false, source, ...(detail ? { detail } : {}) };
 }
 
 export async function listProviderModels(
   provider: AiProvider,
   apiKey: string | null,
 ): Promise<ModelCatalog> {
-  if (!apiKey) return fallbackModels(provider);
+  if (!apiKey) return fallbackModels(provider, "no-key");
   const cacheKey = `${provider}:${createHash("sha256").update(apiKey).digest("hex")}`;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < TTL_MS) return { models: hit.models, live: true };
+  if (hit && Date.now() - hit.at < TTL_MS) return { models: hit.models, live: true, source: "live" };
 
   try {
     const models =
@@ -48,18 +65,30 @@ export async function listProviderModels(
         : provider === "openai"
           ? await fetchOpenAi(apiKey)
           : await fetchGemini(apiKey);
-    if (models.length === 0) return fallbackModels(provider);
+    if (models.length === 0) return fallbackModels(provider, "error", "the provider returned no models");
     cache.set(cacheKey, { at: Date.now(), models });
-    return { models, live: true };
+    return { models, live: true, source: "live" };
   } catch (err) {
-    console.error(`[ai] model list fetch failed for ${provider}:`, err instanceof Error ? err.message : err);
-    return fallbackModels(provider);
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`[ai] model list fetch failed for ${provider}:`, detail);
+    return fallbackModels(provider, "error", detail.slice(0, 160));
   }
 }
 
 async function getJson(url: string, headers: Record<string, string>): Promise<unknown> {
   const res = await fetch(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    // The provider's own error message, so "HTTP 401" says WHICH 401 (bad key, key
+    // disabled, wrong workspace). Never the key itself: providers do not echo it.
+    let why = "";
+    try {
+      const b = asRecord(await res.json());
+      why = str(asRecord(b.error).message) ?? str(b.message) ?? "";
+    } catch {
+      why = "";
+    }
+    throw new Error(`HTTP ${res.status}${why ? `: ${why}` : ""}`);
+  }
   return res.json();
 }
 

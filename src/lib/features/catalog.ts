@@ -42,6 +42,7 @@ export const FEATURE_RELEASE_KEYS = [
   "lifecycle",
   "testPayment",
   "mcp",
+  "liveAiModels",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -203,6 +204,19 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     // key. The owner and internal workspaces are exempt, so it can be proven first.
     defaultReleased: false,
     // No route of its own: it lives on the API tokens page beside the other keys.
+    routes: [],
+  },
+  {
+    key: "liveAiModels",
+    label: "Live AI model list",
+    blurb:
+      "The Model dropdown in AI settings lists every model the provider offers right now, read live with the saved key, newest first.",
+    whileHeld:
+      "The Model dropdown shows the built-in list instead. A model already saved stays selected and keeps working, and Custom still takes any model id.",
+    // Held back so the owner can prove the live read on an internal workspace before a
+    // customer's dropdown depends on a provider call. Nothing is lost while it is off.
+    defaultReleased: false,
+    // No route of its own: it is the Model dropdown on the AI settings screens.
     routes: [],
   },
 ];

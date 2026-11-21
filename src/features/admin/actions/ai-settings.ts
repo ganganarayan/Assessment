@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
 import { listProviderModels, fallbackModels, type ModelCatalog } from "@/lib/ai/model-catalog";
+import { featureAllowedFor } from "@/lib/features/release";
 import { testStatement } from "@/lib/ai/generate";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { builtInPromptsAllowed } from "@/lib/ai/scope";
@@ -145,9 +146,12 @@ export async function getAiSettings(): Promise<AiSettingsView> {
  * never touches which model is saved.
  */
 export async function listAiModels(provider: string): Promise<ModelCatalog> {
-  if (!isAiProvider(provider)) return { models: [], live: false };
+  if (!isAiProvider(provider)) return { models: [], live: false, source: "no-key" };
   const scope = await resolveActingScope();
-  if (!scope.isSuper && !scope.tenantId) return fallbackModels(provider);
+  if (!scope.isSuper && !scope.tenantId) return fallbackModels(provider, "no-key");
+  // Release switch: held back = the built-in list for every customer workspace. The
+  // platform and internal workspaces are exempt, so the owner keeps the live list.
+  if (!(await featureAllowedFor("liveAiModels", scope.tenantId))) return fallbackModels(provider, "held");
 
   const column = KEY_COLUMN[provider];
   const pick = (row: Awaited<ReturnType<typeof readScopeSetting>>): string | null => {

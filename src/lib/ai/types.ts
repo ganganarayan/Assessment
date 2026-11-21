@@ -21,10 +21,14 @@ export interface AiModelOption {
  *  or the provider cannot be reached, so nobody needs to keep it current by hand. */
 export const MODELS_BY_PROVIDER: Record<AiProvider, AiModelOption[]> = {
   claude: [
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 - fast, cheapest" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 - balanced" },
+    { value: "claude-opus-5-5", label: "Claude Opus 5.5 - most capable" },
+    { value: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 - balanced" },
+    { value: "claude-haiku-5-5", label: "Claude Haiku 5.5 - fast, cheapest" },
+    { value: "claude-fable-5-2", label: "Claude Fable 5.2" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
     { value: "claude-sonnet-5", label: "Claude Sonnet 5" },
-    { value: "claude-opus-4-8", label: "Claude Opus 4.8 - most capable" },
+    { value: "claude-opus-4-8", label: "Claude Opus 4.8" },
     { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
   ],
   openai: [
